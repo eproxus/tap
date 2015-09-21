@@ -8,7 +8,7 @@ defmodule Tap do
 
   def calls({m, f, a}, max, opts), do: calls([{m, f, a}], max, opts)
   def calls([_|_] = tspecs, max, opts) do
-    :recon_trace.calls(tspecs, max, Keyword.merge(@default, opts))
+    :recon_trace.calls(expand(tspecs), max, Keyword.merge(@default, opts))
   end
 
   def format(event) do
@@ -91,6 +91,17 @@ defmodule Tap do
   def format({{hour, min, sec}, pid}, message) do
     "#{hour}:#{min}:#{Float.to_string(sec, decimals: 6)} #{inspect pid} #{message}\n\n"
   end
+
+  defp expand(specs), do: for(s <- specs, do: spec(s))
+
+  defp spec({m, f, :return}), do: {m, f, pattern(p)}
+  defp spec(s), do: s
+
+  defp pattern(:return), do: [{:_, [], [{:exception_trace}]}]
+  defp pattern(:r), do: pattern(:return)
+  defp pattern(:x), do: pattern(:return)
+  defp pattern(:e), do: pattern(:return)
+  defp pattern(p), do: p
 
   defp extract(event) do
     case Tuple.to_list(event) do
