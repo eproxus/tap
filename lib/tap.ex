@@ -89,7 +89,7 @@ defmodule Tap do
   end
 
   def format({{hour, min, sec}, pid}, message) do
-    "#{hour}:#{min}:#{Float.to_string(sec, decimals: 6)} #{inspect pid} #{message}\n"
+    "#{hour}:#{min}:#{Float.to_string(sec, decimals: 6)} #{inspect pid} #{message}\n\n"
   end
 
   defp extract(event) do
