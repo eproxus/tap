@@ -1,0 +1,2 @@
+%{"ex2ms": {:hex, :ex2ms, "1.2.0"},
+  "recon": {:git, "git://github.com/ferd/recon.git", "59589b71e7ad3b0f4f93571905f572db5fae7821", []}}
