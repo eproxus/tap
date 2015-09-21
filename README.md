@@ -1,2 +1,4 @@
-# elixir-debugger
-Elixir interface to the Erlang trace BIFs
+# Tap
+
+Elixir wrapper for the [Recon](https://github.com/ferd/recon) library.
+
