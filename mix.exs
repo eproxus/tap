@@ -22,6 +22,10 @@ defmodule Tap.Mixfile do
       ],
       licenses: ["Apache 2.0"],
       source_url: "https://github.com/eproxus/tap",
+      links: %{
+        "GitHub" => "https://github.com/eproxus/tap",
+        "Documentation" => "http://hexdocs.pm/tap",
+      },
     ]
   end
 
