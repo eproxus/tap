@@ -1,5 +1,6 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/tap.svg?style=flat-square)](https://hex.pm/packages/tap)
 [![License](https://img.shields.io/hexpm/l/tap.svg?style=flat-square)](https://github.com/eproxus/tap/blob/master/LICENSE)
+[![Build Status](http://img.shields.io/travis/eproxus/tap.svg?style=flat-square)](http://travis-ci.org/eproxus/tap)
 
 # Tap
 
