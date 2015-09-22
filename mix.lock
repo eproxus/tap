@@ -1,1 +1,1 @@
-%{"recon": {:git, "git://github.com/ferd/recon.git", "59589b71e7ad3b0f4f93571905f572db5fae7821", []}}
+%{"recon": {:hex, :recon, "2.2.1"}}
