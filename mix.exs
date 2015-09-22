@@ -5,17 +5,23 @@ defmodule Tap.Mixfile do
     [
       app: :tap,
       description: "Elixir tracing",
-      maintainers: [
-        "Adam Lindberg <hello@alind.io>"
-      ],
-      licenses: ["Apache License 2.0"],
+      package: package,
       version: "0.1.0",
       elixir: "~> 1.0",
-      source_url: "https://github.com/eproxus/tap",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       deps: deps,
       docs: [extras: ["README.md"]]
+    ]
+  end
+
+  def package do
+    [
+      maintainers: [
+        "Adam Lindberg <hello@alind.io>"
+      ],
+      licenses: ["Apache 2.0"],
+      source_url: "https://github.com/eproxus/tap",
     ]
   end
 
