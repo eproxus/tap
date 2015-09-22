@@ -44,6 +44,10 @@ defmodule Tap.Mixfile do
   defp deps do
     [
       {:recon, github: "ferd/recon", branch: "master"},
+
+      # Documentation
+      {:ex_doc, "~> 0.9", only: :dev},
+      {:earmark, "~> 0.1", only: :dev},
     ]
   end
 end
