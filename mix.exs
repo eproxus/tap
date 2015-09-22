@@ -2,12 +2,21 @@ defmodule Tap.Mixfile do
   use Mix.Project
 
   def project do
-    [app: :tap,
-     version: "0.0.1",
-     elixir: "~> 1.0",
-     build_embedded: Mix.env == :prod,
-     start_permanent: Mix.env == :prod,
-     deps: deps]
+    [
+      app: :tap,
+      description: "Elixir tracing",
+      maintainers: [
+        "Adam Lindberg <hello@alind.io>"
+      ],
+      license: "Apache License 2.0",
+      version: "0.1.0",
+      elixir: "~> 1.0",
+      source_url: "https://github.com/eproxus/tap",
+      build_embedded: Mix.env == :prod,
+      start_permanent: Mix.env == :prod,
+      deps: deps,
+      docs: [extras: ["README.md"]]
+    ]
   end
 
   # Configuration for the OTP application
