@@ -2,13 +2,26 @@ defmodule Tap do
 
   @default [formatter: &__MODULE__.format/1]
 
-  def calls(m, max) when is_atom(m), do: calls([{m, :_, :_}], max)
-  def calls({m, f, a}, max),         do: calls([{m, f, a}], max)
-  def calls([_|_] = tspecs, max),    do: calls(tspecs, max, [])
+  defmacro call(mfa, n) do
+    {{:., _, [module, function]}, _, args} = mfa
+    args = Enum.map(args, fn {:_, _, nil} -> :_; arg -> arg end)
+    quote do
+      Tap.calls(
+        [{
+          unquote(module),
+          unquote(function),
+          [{unquote(args), [], [{:exception_trace}]}]
+        }],
+        unquote(n)
+      )
+    end
+  end
 
-  def calls({m, f, a}, max, opts), do: calls([{m, f, a}], max, opts)
-  def calls([_|_] = tspecs, max, opts) do
-    :recon_trace.calls(expand(tspecs), max, Keyword.merge(@default, opts))
+  def calls(tspecs, opts) when is_integer(opts), do: calls(tspecs, max: opts)
+  def calls(tspecs, opts) do
+    max = Keyword.get(opts, :max, 1)
+    opts = Keyword.merge(@default, Keyword.drop(opts, [:max]))
+    :recon_trace.calls(expand(tspecs), max, opts)
   end
 
   def format(event) do
@@ -16,7 +29,7 @@ defmodule Tap do
     case {type, info} do
       ## {:trace, pid, :receive, msg}
       {:receive, [msg]} ->
-        format(meta, "< #{inspect msg}")
+        format(meta, "< #{inspect(msg, pretty: true)}")
       ## {trace, Pid, send, Msg, To}
       # {send, [Msg, To]} ->
       #     {" > ~p: ~p", [To, Msg]};
@@ -31,7 +44,7 @@ defmodule Tap do
       #     {"~p:~p/~p", [M,F,Arity]};
       ## {trace, Pid, return_from, {M, F, Arity}, ReturnValue}
       {:return_from, [{m, f, a}, return]} ->
-        format(meta, [Exception.format_mfa(m, f, a), " --> ", inspect(return)])
+        format(meta, [Exception.format_mfa(m, f, a), " --> ", inspect(return, pretty: true)])
       ## {trace, Pid, exception_from, {M, F, Arity}, {Class, Value}}
       {:exception_from, [{m, f, a}, {class, reason}]} ->
         format(meta, [Exception.format_mfa(m, f, a), ?\s, Exception.format(class, reason)])
