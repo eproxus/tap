@@ -94,13 +94,15 @@ defmodule Tap do
 
   defp expand(specs), do: for(s <- specs, do: spec(s))
 
-  defp spec({m, f, :return}), do: {m, f, pattern(p)}
+  defp spec({m, f, p}), do: {m, f, pattern(p)}
   defp spec(s), do: s
 
+  defp pattern({arity, :return}) do
+    [{for(_ <- 1..arity, do: :_), [], [{:exception_trace}]}]
+  end
+  defp pattern({arity, :r}), do: pattern({arity, :return})
   defp pattern(:return), do: [{:_, [], [{:exception_trace}]}]
   defp pattern(:r), do: pattern(:return)
-  defp pattern(:x), do: pattern(:return)
-  defp pattern(:e), do: pattern(:return)
   defp pattern(p), do: p
 
   defp extract(event) do
