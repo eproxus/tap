@@ -2,6 +2,23 @@ defmodule Tap do
 
   @default [formatter: &__MODULE__.format/1]
 
+  @doc ~S"""
+  Traces calls, return values and exceptions from the function call template
+  given as an argument.
+
+  ## Examples
+
+  Trace calls to `&String.starts_with?/2` and print the first two events:
+
+      iex> Tap.call(String.starts_with?(_, _), 2)
+      1
+
+  Trace calls to `&String.starts_with?/2` when the second argument is
+  `"b"` and print the first event:
+
+      iex> Tap.call(String.starts_with?(_, "b"), 1)
+      1
+  """
   defmacro call(mfa, n) do
     {{:., _, [module, function]}, _, args} = mfa
     args = Enum.map(args, fn {:_, _, nil} -> :_; arg -> arg end)
@@ -17,6 +34,24 @@ defmodule Tap do
     end
   end
 
+  @doc ~S"""
+  Traces on the function patterns given as an argument.
+
+  ## Examples
+
+  Trace calls (but not return values) to `&String.strip` with any number of
+  arguments and print the first ten events:
+
+      iex> Tap.calls([{String, :strip, :_}], max: 10)
+      2
+
+  Trace calls and return values from `&String.strip/2` and print the first ten
+  events:
+
+      iex> Tap.calls([{String, :strip, {2, :return}}], max: 10)
+      2
+
+  """
   def calls(tspecs, opts) when is_integer(opts), do: calls(tspecs, max: opts)
   def calls(tspecs, opts) do
     max = Keyword.get(opts, :max, 1)
