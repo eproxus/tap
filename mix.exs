@@ -37,7 +37,7 @@ defmodule Tap.Mixfile do
   # Type `mix help deps` for more examples and options
   defp deps do
     [
-      {:recon, "~> 2.2"},
+      {:recon, github: "ferd/recon", branch: "master"},
     ]
   end
 end
