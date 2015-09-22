@@ -1,3 +1,6 @@
+[![Hex.pm](https://img.shields.io/hexpm/v/tap.svg?style=flat-square)](https://hex.pm/packages/tap)
+[![License](https://img.shields.io/hexpm/l/tap.svg?style=flat-square)](https://github.com/eproxus/tap/blob/master/LICENSE)
+
 # Tap
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*Because Erlang's tracing is awesome and
