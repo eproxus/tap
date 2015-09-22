@@ -8,7 +8,7 @@ defmodule Tap.Mixfile do
       maintainers: [
         "Adam Lindberg <hello@alind.io>"
       ],
-      license: "Apache License 2.0",
+      licenses: ["Apache License 2.0"],
       version: "0.1.0",
       elixir: "~> 1.0",
       source_url: "https://github.com/eproxus/tap",
