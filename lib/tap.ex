@@ -29,7 +29,7 @@ defmodule Tap do
           unquote(function),
           [{unquote(args), [], [{:exception_trace}]}]
         }],
-        unquote(n)
+        unquote(opts)
       )
     end
   end
@@ -54,7 +54,7 @@ defmodule Tap do
   """
   def calls(tspecs, opts) when is_integer(opts), do: calls(tspecs, max: opts)
   def calls(tspecs, opts) do
-    max = Keyword.get(opts, :max, 1)
+    max = Keyword.get(opts, :max, 2)
     opts = Keyword.merge(@default, Keyword.drop(opts, [:max]))
     :recon_trace.calls(expand(tspecs), max, opts)
   end
