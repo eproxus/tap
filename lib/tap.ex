@@ -19,7 +19,7 @@ defmodule Tap do
       iex> Tap.call(String.starts_with?(_, "b"), 1)
       1
   """
-  defmacro call(mfa, n) do
+  defmacro call(mfa, opts) do
     {{:., _, [module, function]}, _, args} = mfa
     args = Enum.map(args, fn {:_, _, nil} -> :_; arg -> arg end)
     quote do
