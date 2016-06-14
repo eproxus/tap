@@ -6,7 +6,7 @@ defmodule Tap.Mixfile do
       app: :tap,
       description: "Elixir tracing",
       package: package,
-      version: "0.1.3",
+      version: "0.1.4",
       elixir: "~> 1.2",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
@@ -35,7 +35,7 @@ defmodule Tap.Mixfile do
 
   defp deps do
     [
-      {:recon, "~> 2.3"},
+      {:recon, git: "https://github.com/ferd/recon.git"},
 
       # Documentation
       {:ex_doc,  "~> 0.9", only: :dev},
