@@ -33,7 +33,7 @@ defmodule Tap.Mixfile do
   #
   # Type `mix help compile.app` for more information
   def application do
-    [applications: [:recon]]
+    [applications: [:runtime_tools, :recon]]
   end
 
   # Dependencies can be Hex packages:
