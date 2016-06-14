@@ -7,7 +7,7 @@ defmodule Tap.Mixfile do
       description: "Elixir tracing",
       package: package,
       version: "0.1.0",
-      elixir: "~> 1.0",
+      elixir: "~> 1.2",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       deps: deps,
