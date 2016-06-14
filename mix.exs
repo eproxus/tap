@@ -35,7 +35,7 @@ defmodule Tap.Mixfile do
 
   defp deps do
     [
-      {:recon, "~> 2.3", manager: :rebar3},
+      {:recon, "~> 2.3"},
 
       # Documentation
       {:ex_doc,  "~> 0.9", only: :dev},
