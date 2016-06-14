@@ -38,7 +38,7 @@ defmodule Tap.Mixfile do
       {:recon, github: "ferd/recon", branch: "master"},
 
       # Documentation
-      {:ex_doc, "~> 0.9", only: :dev},
+      {:ex_doc,  "~> 0.9", only: :dev},
       {:earmark, "~> 0.1", only: :dev},
     ]
   end
