@@ -5,12 +5,12 @@ defmodule Tap.Mixfile do
     [
       app: :tap,
       description: "Elixir tracing",
-      package: package,
+      package: package(),
       version: "0.1.4",
       elixir: "~> 1.2",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
-      deps: deps,
+      deps: deps(),
       docs: [extras: ["README.md"]]
     ]
   end
