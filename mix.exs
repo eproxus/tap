@@ -24,7 +24,7 @@ defmodule Tap.Mixfile do
       source_url: "https://github.com/eproxus/tap",
       links: %{
         "GitHub" => "https://github.com/eproxus/tap",
-        "Documentation" => "http://hexdocs.pm/tap",
+        "Changelog" => "https://github.com/eproxus/tap/blob/master/CHANGELOG.md",
       },
     ]
   end
