@@ -53,16 +53,16 @@ defmodule Tap do
 
   ## Examples
 
-  Trace calls (but not return values) to `&String.strip` with any number of
+  Trace calls (but not return values) to `&String.trim` with any number of
   arguments and print the first ten events:
 
-      iex> Tap.calls([{String, :strip, :_}], max: 10)
+      iex> Tap.calls([{String, :trim, :_}], max: 10)
       2
 
-  Trace calls and return values from `&String.strip/2` and print the first ten
+  Trace calls and return values from `&String.trim/2` and print the first ten
   events:
 
-      iex> Tap.calls([{String, :strip, {2, :return}}], max: 10)
+      iex> Tap.calls([{String, :trim, {2, :return}}], max: 10)
       2
 
   """
