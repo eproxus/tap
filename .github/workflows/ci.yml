@@ -86,8 +86,8 @@ jobs:
   # Pushes to main publish the version in mix.exs when the head commit is its
   # untagged release commit (`chore(release): <version>`). Other runs preview
   # the next release.
-  release:
-    name: Release
+  release-check:
+    name: Release check
 
     runs-on: ubuntu-24.04
 
@@ -95,10 +95,9 @@ jobs:
 
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
 
-    permissions:
-      contents: write
-
-    environment: hex
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      publish: ${{ steps.version.outputs.publish }}
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -106,17 +105,6 @@ jobs:
           fetch-depth: 0
 
       - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
-
-      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
-        with:
-          path: |
-            deps
-            _build
-          key: mix-${{runner.os}}_${{runner.arch}}-release-${{hashFiles('mise.toml', 'mix.lock')}}
-          restore-keys: |
-            mix-${{runner.os}}_${{runner.arch}}-release-
-
-      - run: mix deps.get
 
       - name: Check version
         id: version
@@ -138,63 +126,14 @@ jobs:
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           echo "Version: v$VERSION (publish: $PUBLISH)"
 
-      - name: Read changelog
-        id: changelog
-        run: |
-          {
-            echo "changelog<<CHANGELOG_EOF"
-            mise run --quiet release:notes
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      # Hex first and the tag second, so an existing tag implies a published
-      # package. Skipping published versions makes failed runs re-runnable.
-      - name: Publish to Hex
-        if: steps.version.outputs.publish == 'true'
-        env:
-          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          if mix hex.info tap "${VERSION#v}" > /dev/null 2>&1; then
-            echo "tap ${VERSION#v} is already on Hex"
-          else
-            mix hex.publish --yes
-          fi
-
-      - name: Tag and push
-        if: steps.version.outputs.publish == 'true'
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          git tag "$VERSION"
-          git push origin "$VERSION"
-
-      - name: Create GitHub release
-        if: steps.version.outputs.publish == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-          # Via env var so backticks in the changelog aren't evaluated as
-          # shell command substitution.
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
-        run: >-
-          gh release create "$VERSION" --verify-tag
-          --title "$VERSION" --notes "$CHANGELOG"
-
       - name: Summary
         env:
           PUBLISH: ${{ steps.version.outputs.publish }}
           VERSION: ${{ steps.version.outputs.version }}
-          # Via env var so backticks in the changelog aren't evaluated as
-          # shell command substitution.
-          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
         run: |
           {
             if [ "$PUBLISH" = "true" ]; then
-              echo "## Released ${VERSION}"
-              echo ""
-              echo "- [GitHub Release](https://github.com/eproxus/tap/releases/tag/${VERSION})"
-              echo "- [Hex Package](https://hex.pm/packages/tap/${VERSION#v})"
+              echo "## Release ${VERSION}"
             else
               echo "## Release Preview"
             fi
@@ -203,5 +142,74 @@ jobs:
             echo ""
             echo "## Changelog"
             echo ""
-            echo "$CHANGELOG"
+            mise run --quiet release:notes
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Separate from release-check so that only publishing runs in the hex
+  # environment, which holds the Hex API key.
+  release:
+    name: Release
+
+    runs-on: ubuntu-24.04
+
+    needs: release-check
+
+    if: needs.release-check.outputs.publish == 'true'
+
+    permissions:
+      contents: write
+
+    environment: hex
+
+    env:
+      VERSION: ${{ needs.release-check.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{runner.os}}_${{runner.arch}}-release-${{hashFiles('mise.toml', 'mix.lock')}}
+          restore-keys: |
+            mix-${{runner.os}}_${{runner.arch}}-release-
+
+      - run: mix deps.get
+
+      # Hex first and the tag second, so an existing tag implies a published
+      # package. Skipping published versions makes failed runs re-runnable.
+      - name: Publish to Hex
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          if mix hex.info tap "${VERSION#v}" > /dev/null 2>&1; then
+            echo "tap ${VERSION#v} is already on Hex"
+          else
+            mix hex.publish --yes
+          fi
+
+      - name: Tag and push
+        run: |
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mise run --quiet release:notes > "$RUNNER_TEMP/notes.md"
+          gh release create "$VERSION" --verify-tag --title "$VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Summary
+        run: |
+          {
+            echo "## Released ${VERSION}"
+            echo ""
+            echo "- [GitHub Release](https://github.com/eproxus/tap/releases/tag/${VERSION})"
+            echo "- [Hex Package](https://hex.pm/packages/tap/${VERSION#v})"
           } >> "$GITHUB_STEP_SUMMARY"
