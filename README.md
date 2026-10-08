@@ -60,3 +60,6 @@ native Elixir formatting and macros for creating traces in an intuitive way.
 3. Run `mise run release:push` to commit the release and push it to `main`.
    CI publishes the package to Hex, tags the release, and creates a GitHub
    release once lint and tests pass.
+
+CI publishes only when the release commit is the head of `main`. If the
+release fails, push a fix and repeat the steps.

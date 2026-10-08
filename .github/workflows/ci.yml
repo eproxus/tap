@@ -83,8 +83,9 @@ jobs:
 
       - run: mise run --output=keep-order test
 
-  # Pushes to main release the version in mix.exs unless it is already
-  # tagged, so pushing a `mise run release:prepare` commit publishes it.
+  # Pushes to main publish the version in mix.exs when the head commit is its
+  # untagged release commit (`chore(release): <version>`). Other runs preview
+  # the next release.
   release:
     name: Release
 
@@ -123,14 +124,15 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           VERSION=$(mise run --quiet release:version)
-          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
-            # Released already: preview what release:prepare would produce.
+          if [ "$(git log -1 --format=%s)" = "chore(release): $VERSION" ] &&
+            ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            mise run release:check
+            PUBLISH=$([ "$EVENT" = push ] && echo true || echo false)
+          else
+            # Preview what release:prepare would produce.
             mise run release:prepare
             VERSION=$(mise run --quiet release:version)
             PUBLISH=false
-          else
-            mise run release:check
-            PUBLISH=$([ "$EVENT" = push ] && echo true || echo false)
           fi
           echo "version=v$VERSION" >> "$GITHUB_OUTPUT"
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"

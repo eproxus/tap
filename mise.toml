@@ -164,10 +164,14 @@ if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   exit 1
 fi
 changed=$(git status --porcelain --untracked-files=no | awk '{print $2}' | sort | tr '\n' ' ')
-if [[ "$changed" != "CHANGELOG.md mix.exs " ]]; then
-  echo "Expected changes to CHANGELOG.md and mix.exs only, got: $changed" >&2
-  exit 1
-fi
+# mix.exs is unchanged when a failed release is prepared again.
+case "$changed" in
+  "CHANGELOG.md " | "CHANGELOG.md mix.exs ") ;;
+  *)
+    echo "Expected changes to CHANGELOG.md and mix.exs only, got: $changed" >&2
+    exit 1
+    ;;
+esac
 mise run release:check
 version=$(mise run --quiet release:version)
 # In a colocated jj repository, the working-copy change holding the release
