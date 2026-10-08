@@ -51,11 +51,12 @@ native Elixir formatting and macros for creating traces in an intuitive way.
 
 ## Releasing
 
-Run `mise run release`. The task sets the next version in `mix.exs`,
-regenerates `CHANGELOG.md`, and shows the new changelog section. After
-confirmation, it commits the release and pushes it to `main`. The version is
-computed from the commits since the last release. To override it, pass an
-explicit version (e.g. `mise run release 1.0.0`).
+Run `mise run release` on a clean working copy of `origin/main`. The task first
+shows the changelog section of the next release. After confirmation, it sets
+the version in `mix.exs`, regenerates `CHANGELOG.md`, commits the release, and
+pushes it to `main`. The version is computed from the commits since the last
+release. To override it, pass an explicit version (e.g. `mise run release
+1.0.0`). To only show the changelog section, run `mise run release:preview`.
 
 CI publishes the package to Hex, tags the release, and creates a GitHub
 release once lint and tests pass. CI publishes only when the release commit is

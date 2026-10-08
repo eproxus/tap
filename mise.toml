@@ -133,7 +133,10 @@ awk -v heading="## [$version]" '
 
 [tasks."release:prepare"]
 description = "Set the release version in mix.exs and regenerate CHANGELOG.md"
-usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
+usage = '''
+arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"
+flag "--dry-run" help="Print the changelog section instead of writing files"
+'''
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -146,17 +149,24 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Invalid version: $version" >&2
   exit 1
 fi
+if [[ "${usage_dry_run:-}" == true ]]; then
+  git-cliff "$range" --unreleased --tag "v$version" --strip all
+  exit
+fi
 perl -pi -e 's/^  \@version "[^"]*"$/  \@version "'"$version"'"/' mix.exs
 grep -q "^  @version \"$version\"$" mix.exs
 git-cliff "$range" --tag "v$version" --output CHANGELOG.md
 echo "Prepared release $version"
 '''
 
-[tasks.release]
-description = "Prepare a release, show its changelog, and push it to main"
+[tasks."release:preview"]
+description = "Print the changelog section of the next release"
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
-# Connects stdin for the confirmation prompt.
-raw = true
+run = 'mise run --quiet release:prepare --dry-run ${usage_version:+"$usage_version"}'
+
+[tasks."release:ready"]
+description = "Check that HEAD is origin/main and the working copy is clean"
+wait_for = ["release:preview"]
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -169,6 +179,18 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   echo "The working copy has uncommitted changes" >&2
   exit 1
 fi
+'''
+
+[tasks.release]
+description = "Preview a release, then commit it and push it to main"
+usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
+# release:ready waits for release:preview, so the changelog section is printed
+# even when the repository is not ready for a release.
+depends = ["release:preview {{usage.version}}", "release:ready"]
+confirm = "Commit and push the release shown above to main?"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
 # In a colocated jj repository, the working-copy change holding the release
 # edits is left behind once jj imports the new Git HEAD.
 jj_change=""
@@ -180,16 +202,6 @@ trap '[[ $committed == true ]] || git checkout HEAD -- mix.exs CHANGELOG.md' EXI
 mise run release:prepare ${usage_version:+"$usage_version"}
 mise run release:check
 version=$(mise run --quiet release:version)
-echo
-echo "## $version"
-echo
-mise run --quiet release:notes
-echo
-read -r -p "Commit and push release $version to main? [y/N] " answer
-if [[ "$answer" != [yY] ]]; then
-  echo "Release aborted" >&2
-  exit 1
-fi
 git commit -m "chore(release): $version" -- mix.exs CHANGELOG.md
 committed=true
 git push origin HEAD:main
