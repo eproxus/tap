@@ -1,5 +1,4 @@
 defmodule Tap do
-
   @default [formatter: &__MODULE__.format/1]
 
   @doc ~S"""
@@ -21,14 +20,22 @@ defmodule Tap do
   """
   defmacro call(mfa, opts) do
     {{:., _, [module, function]}, _, args} = mfa
-    args = Enum.map(args, fn {:_, _, nil} -> :_; arg -> arg end)
+
+    args =
+      Enum.map(args, fn
+        {:_, _, nil} -> :_
+        arg -> arg
+      end)
+
     quote do
       Tap.calls(
-        [{
-          unquote(module),
-          unquote(function),
-          [{unquote(args), [], [{:exception_trace}]}]
-        }],
+        [
+          {
+            unquote(module),
+            unquote(function),
+            [{unquote(args), [], [{:exception_trace}]}]
+          }
+        ],
         unquote(opts)
       )
     end
@@ -53,6 +60,7 @@ defmodule Tap do
 
   """
   def calls(tspecs, opts) when is_integer(opts), do: calls(tspecs, max: opts)
+
   def calls(tspecs, opts) do
     max = Keyword.get(opts, :max, 2)
     opts = Keyword.merge(@default, Keyword.drop(opts, [:max]))
@@ -61,10 +69,12 @@ defmodule Tap do
 
   def format(event) do
     {type, info, meta} = extract(event)
+
     case {type, info} do
       ## {:trace, pid, :receive, msg}
       {:receive, [msg]} ->
         format(meta, "< #{inspect(msg, pretty: true)}")
+
       ## {trace, Pid, send, Msg, To}
       # {send, [Msg, To]} ->
       #     {" > ~p: ~p", [To, Msg]};
@@ -74,16 +84,19 @@ defmodule Tap do
       ## {trace, Pid, call, {M, F, Args}}
       {:call, [{m, f, a}]} ->
         format(meta, Exception.format_mfa(m, f, a))
+
       ## {trace, Pid, return_to, {M, F, Arity}}
       # {return_to, [{M,F,Arity}]} ->
       #     {"~p:~p/~p", [M,F,Arity]};
       ## {trace, Pid, return_from, {M, F, Arity}, ReturnValue}
       {:return_from, [{m, f, a}, return]} ->
         format(meta, [Exception.format_mfa(m, f, a), " --> ", inspect(return, pretty: true)])
+
       ## {trace, Pid, exception_from, {M, F, Arity}, {Class, Value}}
       {:exception_from, [{m, f, a}, {class, reason}]} ->
         format(meta, [Exception.format_mfa(m, f, a), ?\s, Exception.format(class, reason)])
-          # {"~p:~p/~p ~p ~p", [M,F,Arity, Class, Val]};
+
+      # {"~p:~p/~p ~p ~p", [M,F,Arity, Class, Val]};
       ## {trace, Pid, spawn, Spawned, {M, F, Args}}
       # {spawn, [Spawned, {M,F,Args}]}  ->
       #     {"spawned ~p as ~p:~p~s", [Spawned, M, F, format_args(Args)]};
@@ -147,7 +160,7 @@ defmodule Tap do
       
   """
   def format({{hour, min, sec}, pid}, message) do
-    "#{hour}:#{min}:#{:erlang.float_to_binary(sec, decimals: 6)} #{inspect pid} #{message}\n\n"
+    "#{hour}:#{min}:#{:erlang.float_to_binary(sec, decimals: 6)} #{inspect(pid)} #{message}\n\n"
   end
 
   defp expand(specs), do: for(s <- specs, do: spec(s))
@@ -158,6 +171,7 @@ defmodule Tap do
   defp pattern({arity, :return}) do
     [{for(_ <- 1..arity, do: :_), [], [{:exception_trace}]}]
   end
+
   defp pattern({arity, :r}), do: pattern({arity, :return})
   defp pattern(:return), do: [{:_, [], [{:exception_trace}]}]
   defp pattern(:r), do: pattern(:return)
@@ -168,14 +182,14 @@ defmodule Tap do
       [:trace_ts, pid, type | rest] ->
         {meta, [stamp]} = Enum.split(rest, length(rest) - 1)
         {type, meta, {time(stamp), pid}}
+
       [:trace, pid, type | meta] ->
-        {type, meta, {time(:os.timestamp), pid}}
+        {type, meta, {time(:os.timestamp()), pid}}
     end
   end
 
   defp time({_, _, micro} = stamp) do
     {_, {h, m, s}} = :calendar.now_to_local_time(stamp)
-    {h, m, s + micro / 1000000}
+    {h, m, s + micro / 1_000_000}
   end
-
 end
