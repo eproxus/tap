@@ -36,6 +36,9 @@ defmodule Tap.MixProject do
     [
       {:recon, "~> 2.5"},
 
+      # Linting
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+
       # Documentation
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]

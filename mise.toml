@@ -1,6 +1,65 @@
 [tools]
 erlang = "29.1.1"
 elixir = "1.20.4-otp-29"
+markdownlint-cli2 = "latest"
+
+[tasks.format]
+description = "Format all code"
+run = """
+mix format
+mise fmt
+"""
+
+# The verify:mix:* tasks are chained with wait_for (not depends) so they run
+# sequentially when scheduled together (concurrent mix runs contend for the
+# build directory), while each task can still be run individually.
+[tasks."verify:mix:compile"]
+description = "Compile with warnings as errors"
+run = "mix compile --force --warnings-as-errors"
+
+[tasks."verify:mix:format"]
+description = "Check code formatting"
+wait_for = ["verify:mix:compile"]
+run = "mix format --check-formatted"
+
+[tasks."verify:mix:deps"]
+description = "Check for unused dependencies in the lock file"
+wait_for = ["verify:mix:format"]
+run = "mix deps.unlock --check-unused"
+
+[tasks."verify:mix:credo"]
+description = "Run Credo checks"
+wait_for = ["verify:mix:deps"]
+run = "mix credo --strict"
+
+[tasks."verify:mix:xref"]
+description = "Check for compile-time dependency cycles"
+wait_for = ["verify:mix:credo"]
+run = "mix xref graph --format cycles --fail-above 0"
+
+[tasks."verify:mix:docs"]
+description = "Build documentation with warnings as errors"
+wait_for = ["verify:mix:xref"]
+run = "mix docs --warnings-as-errors"
+
+[tasks."verify:mix"]
+description = "Run mix verification checks"
+depends = [
+  "verify:mix:compile",
+  "verify:mix:format",
+  "verify:mix:deps",
+  "verify:mix:credo",
+  "verify:mix:xref",
+  "verify:mix:docs",
+]
+
+[tasks."verify:markdown"]
+description = "Lint Markdown files"
+run = 'markdownlint-cli2 "**/*.md" "!_build" "!deps" "!doc" "!cover" "!tmp"'
+
+[tasks.verify]
+description = "Run all verification checks"
+depends = ["verify:mix", "verify:markdown"]
 
 [tasks.test]
 description = "Run all tests"

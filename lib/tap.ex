@@ -1,4 +1,11 @@
 defmodule Tap do
+  @moduledoc """
+  Tracing of Elixir and Erlang functions.
+
+  Wraps [Recon](https://github.com/ferd/recon)'s `:recon_trace`, adding
+  native Elixir formatting and macros for creating traces.
+  """
+
   @default [formatter: &__MODULE__.format/1]
 
   @doc ~S"""

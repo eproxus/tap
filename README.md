@@ -1,8 +1,8 @@
+# Tap
+
 [![Hex.pm](https://img.shields.io/hexpm/v/tap.svg?style=flat-square)](https://hex.pm/packages/tap)
 [![License](https://img.shields.io/hexpm/l/tap.svg?style=flat-square)](https://github.com/eproxus/tap/blob/master/LICENSE)
 [![Build Status](http://img.shields.io/travis/eproxus/tap.svg?style=flat-square)](http://travis-ci.org/eproxus/tap)
-
-# Tap
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*Because Erlang's tracing is awesome and
 doing compile time debugging sucks!*
@@ -11,7 +11,7 @@ doing compile time debugging sucks!*
 
 Tap enables tracing of Elixir and Erlang functions in a intuitive and safe way.
 
-```
+```elixir
 iex(1)> require Tap
 nil
 iex(2)> Tap.call(String.strip(_, _), max: 4)
@@ -36,4 +36,3 @@ iex(6)>
 
 Tap wraps the excellent [Recon](https://github.com/ferd/recon) library, adding
 native Elixir formatting and macros for creating traces in an intuitive way.
-
