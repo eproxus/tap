@@ -1,0 +1,82 @@
+---
+name: CI
+
+on:
+  push:
+
+concurrency:
+  group: ${{github.workflow}}-${{github.ref}}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    name: Lint
+
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{runner.os}}_${{runner.arch}}-lint-${{hashFiles('mise.toml', 'mix.lock')}}
+          restore-keys: |
+            mix-${{runner.os}}_${{runner.arch}}-lint-
+
+      - run: mix deps.get
+
+      - run: mise run --output=keep-order verify
+
+  test:
+    name: Test (${{ matrix.name }})
+
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Versions pinned in mise.toml
+          - name: latest
+          # Oldest versions supported by the elixir requirement in mix.exs
+          - name: oldest
+            erlang: 25.3.2.21
+            elixir: 1.17.3-otp-25
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Override tool versions
+        if: matrix.elixir
+        env:
+          ERLANG: ${{ matrix.erlang }}
+          ELIXIR: ${{ matrix.elixir }}
+        # mise run would otherwise install the versions pinned in mise.toml.
+        run: |
+          {
+            echo "MISE_ERLANG_VERSION=$ERLANG"
+            echo "MISE_ELIXIR_VERSION=$ELIXIR"
+            echo "MISE_TASK_RUN_AUTO_INSTALL=false"
+          } >> "$GITHUB_ENV"
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        with:
+          path: |
+            deps
+            _build
+          key: >-
+            mix-${{runner.os}}_${{runner.arch}}-test-${{matrix.name}}-${{
+            hashFiles('mise.toml', 'mix.lock') }}
+          restore-keys: |
+            mix-${{runner.os}}_${{runner.arch}}-test-${{matrix.name}}-
+
+      - run: mix deps.get
+
+      - run: mise run --output=keep-order test
