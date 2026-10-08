@@ -103,6 +103,34 @@ if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
 fi
 '''
 
+[tasks."release:notes"]
+description = "Print the CHANGELOG.md section for the version in mix.exs"
+quiet = true
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+version=$(mise run --quiet release:version)
+# Prints the lines between the version's heading and the next heading, without
+# leading and trailing blank lines.
+awk -v heading="## [$version]" '
+  index($0, heading) == 1 { found = 1; next }
+  found && /^## / { exit }
+  found && !NF { blanks++; next }
+  found {
+    while (printed && blanks-- > 0) print ""
+    blanks = 0
+    printed = 1
+    print
+  }
+  END {
+    if (!found) {
+      print "CHANGELOG.md has no " heading " section" > "/dev/stderr"
+      exit 1
+    }
+  }
+' CHANGELOG.md
+'''
+
 [tasks."release:prepare"]
 description = "Set the release version in mix.exs and regenerate CHANGELOG.md"
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'

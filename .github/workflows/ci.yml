@@ -125,8 +125,8 @@ jobs:
           VERSION=$(mise run --quiet release:version)
           if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
             # Released already: preview what release:prepare would produce.
-            VERSION=$(git-cliff v0.1.5..HEAD --bumped-version)
-            VERSION=${VERSION#v}
+            mise run release:prepare
+            VERSION=$(mise run --quiet release:version)
             PUBLISH=false
           else
             mise run release:check
@@ -136,15 +136,12 @@ jobs:
           echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           echo "Version: v$VERSION (publish: $PUBLISH)"
 
-      - name: Generate changelog
+      - name: Read changelog
         id: changelog
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
           {
             echo "changelog<<CHANGELOG_EOF"
-            git-cliff v0.1.5..HEAD --unreleased --tag "$VERSION" --strip all --output - |
-              tail -n +3
+            mise run --quiet release:notes
             echo "CHANGELOG_EOF"
           } >> "$GITHUB_OUTPUT"
 
