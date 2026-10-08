@@ -1,5 +1,8 @@
-/_build
-/deps
+/_build/
+/cover/
+/deps/
+/doc/
 erl_crash.dump
 *.ez
-/doc
+tap-*.tar
+/tmp/

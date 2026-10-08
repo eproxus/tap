@@ -1,4 +1,4 @@
-defmodule Tap.Mixfile do
+defmodule Tap.MixProject do
   use Mix.Project
 
   def project do
@@ -7,9 +7,8 @@ defmodule Tap.Mixfile do
       description: "Elixir tracing",
       package: package(),
       version: "0.1.5",
-      elixir: "~> 1.2",
-      build_embedded: Mix.env == :prod,
-      start_permanent: Mix.env == :prod,
+      elixir: "~> 1.17",
+      start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: [extras: ["README.md"]]
     ]
@@ -20,26 +19,25 @@ defmodule Tap.Mixfile do
       maintainers: [
         "Adam Lindberg <hello@alind.io>"
       ],
-      licenses: ["Apache 2.0"],
+      licenses: ["Apache-2.0"],
       source_url: "https://github.com/eproxus/tap",
       links: %{
         "GitHub" => "https://github.com/eproxus/tap",
-        "Changelog" => "https://github.com/eproxus/tap/blob/master/CHANGELOG.md",
-      },
+        "Changelog" => "https://github.com/eproxus/tap/blob/master/CHANGELOG.md"
+      }
     ]
   end
 
   def application do
-    [applications: [:runtime_tools, :recon]]
+    [extra_applications: [:runtime_tools]]
   end
 
   defp deps do
     [
-      {:recon, "~> 2.3"},
+      {:recon, "~> 2.5"},
 
       # Documentation
-      {:ex_doc,  "~> 0.9", only: :dev},
-      {:earmark, "~> 0.1", only: :dev},
+      {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
 end
