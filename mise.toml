@@ -94,6 +94,45 @@ git-cliff "$range" --tag "v$version" --output CHANGELOG.md
 echo "Prepared release $version"
 '''
 
+[tasks."release:push"]
+description = "Commit the prepared release and push it to main"
+confirm = "Commit and push the prepared release to main?"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+git fetch origin
+if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
+  echo "HEAD is not origin/main" >&2
+  exit 1
+fi
+changed=$(git status --porcelain --untracked-files=no | awk '{print $2}' | sort | tr '\n' ' ')
+if [[ "$changed" != "CHANGELOG.md mix.exs " ]]; then
+  echo "Expected changes to CHANGELOG.md and mix.exs only, got: $changed" >&2
+  exit 1
+fi
+version=$(sed -n 's/^  @version "\(.*\)"$/\1/p' mix.exs)
+if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+  echo "CHANGELOG.md has no $version section; run 'mise run release:prepare'" >&2
+  exit 1
+fi
+if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+  echo "v$version is already tagged" >&2
+  exit 1
+fi
+# In a colocated jj repository, the working-copy change holding the release
+# edits is left behind once jj imports the new Git HEAD.
+jj_change=""
+if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
+  jj_change=$(jj log --no-graph -r @ -T change_id)
+fi
+git commit -m "chore(release): $version" -- mix.exs CHANGELOG.md
+git push origin HEAD:main
+if [[ -n "$jj_change" ]]; then
+  jj abandon "$jj_change"
+fi
+echo "Pushed release $version; CI publishes it once checks pass"
+'''
+
 [tasks.test]
 description = "Run all tests"
 run = "mix test"

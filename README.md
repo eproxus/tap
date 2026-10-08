@@ -49,3 +49,14 @@ iex(4)>
 
 Tap wraps the excellent [Recon](https://github.com/ferd/recon) library, adding
 native Elixir formatting and macros for creating traces in an intuitive way.
+
+## Releasing
+
+1. Run `mise run release:prepare` to set the next version in `mix.exs` and
+   regenerate `CHANGELOG.md`. The version is computed from the commits since
+   the last release. To override it, pass an explicit version  (e.g.
+   `mise run release:prepare 1.0.0`).
+2. Review the changes.
+3. Run `mise run release:push` to commit the release and push it to `main`.
+   CI publishes the package to Hex, tags the release, and creates a GitHub
+   release once lint and tests pass.
