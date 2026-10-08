@@ -44,6 +44,10 @@ body = """
             {% if commit.remote.pr_number %} in \
             [#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) \
             {%- endif -%}
+            {%- if commit.group == "Added" and commit.body %}
+
+{{ commit.body | trim | indent(prefix="  ", first=true, blank=false) }}
+            {%- endif -%}
             {%- if commit.breaking %}
                 {% raw %}    {% endraw %}- **BREAKING**: {{commit.breaking_description}}
             {%- endif -%}

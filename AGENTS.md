@@ -33,6 +33,8 @@ mise run release:prepare [VERSION]   # Set the release version and changelog
 
 * Commit messages follow [Conventional Commits](https://www.conventionalcommits.org).
   `git-cliff` generates the changelog from them (see `cliff.toml`).
+* The body of a `feat` commit appears in the changelog below its subject.
+  Write it for users of the library, e.g. by explaining how to use the feature.
 * To release, run `mise run release:prepare` and commit the result as
   `chore(release): <version>`. Pushing that commit to `main` publishes the
   version once CI passes.

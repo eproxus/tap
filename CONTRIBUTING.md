@@ -57,7 +57,9 @@ While it's OK (and expected) your commit messages relate to why a given change
 was made, be aware that the final commit (the merge one) will be the pull
 request title. It must follow
 [Conventional Commits](https://www.conventionalcommits.org), because the
-changelog is generated from it.
+changelog is generated from it. For `feat` changes, the body of the merge commit
+is added to the changelog below the title. Write it for users of `tap`, e.g. by
+explaining how to use the new feature.
 
 ### Pull requests and branching
 
