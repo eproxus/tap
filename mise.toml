@@ -152,9 +152,11 @@ git-cliff "$range" --tag "v$version" --output CHANGELOG.md
 echo "Prepared release $version"
 '''
 
-[tasks."release:push"]
-description = "Commit the prepared release and push it to main"
-confirm = "Commit and push the prepared release to main?"
+[tasks.release]
+description = "Prepare a release, show its changelog, and push it to main"
+usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
+# Connects stdin for the confirmation prompt.
+raw = true
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -163,24 +165,33 @@ if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   echo "HEAD is not origin/main" >&2
   exit 1
 fi
-changed=$(git status --porcelain --untracked-files=no | awk '{print $2}' | sort | tr '\n' ' ')
-# mix.exs is unchanged when a failed release is prepared again.
-case "$changed" in
-  "CHANGELOG.md " | "CHANGELOG.md mix.exs ") ;;
-  *)
-    echo "Expected changes to CHANGELOG.md and mix.exs only, got: $changed" >&2
-    exit 1
-    ;;
-esac
-mise run release:check
-version=$(mise run --quiet release:version)
+if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+  echo "The working copy has uncommitted changes" >&2
+  exit 1
+fi
 # In a colocated jj repository, the working-copy change holding the release
 # edits is left behind once jj imports the new Git HEAD.
 jj_change=""
 if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
   jj_change=$(jj log --no-graph -r @ -T change_id)
 fi
+committed=false
+trap '[[ $committed == true ]] || git checkout HEAD -- mix.exs CHANGELOG.md' EXIT
+mise run release:prepare ${usage_version:+"$usage_version"}
+mise run release:check
+version=$(mise run --quiet release:version)
+echo
+echo "## $version"
+echo
+mise run --quiet release:notes
+echo
+read -r -p "Commit and push release $version to main? [y/N] " answer
+if [[ "$answer" != [yY] ]]; then
+  echo "Release aborted" >&2
+  exit 1
+fi
 git commit -m "chore(release): $version" -- mix.exs CHANGELOG.md
+committed=true
 git push origin HEAD:main
 if [[ -n "$jj_change" ]]; then
   jj abandon "$jj_change"

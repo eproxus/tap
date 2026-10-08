@@ -4,8 +4,7 @@
 [![License](https://img.shields.io/hexpm/l/tap.svg?style=flat-square)](https://github.com/eproxus/tap/blob/main/LICENSE)
 [![CI](https://img.shields.io/github/actions/workflow/status/eproxus/tap/ci.yml?branch=main&style=flat-square)](https://github.com/eproxus/tap/actions/workflows/ci.yml)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;*Because Erlang's tracing is awesome and
-doing compile time debugging sucks!*
+> *Because Erlang's tracing is awesome and doing compile time debugging sucks!*
 
 ## Description
 
@@ -52,14 +51,12 @@ native Elixir formatting and macros for creating traces in an intuitive way.
 
 ## Releasing
 
-1. Run `mise run release:prepare` to set the next version in `mix.exs` and
-   regenerate `CHANGELOG.md`. The version is computed from the commits since
-   the last release. To override it, pass an explicit version  (e.g.
-   `mise run release:prepare 1.0.0`).
-2. Review the changes.
-3. Run `mise run release:push` to commit the release and push it to `main`.
-   CI publishes the package to Hex, tags the release, and creates a GitHub
-   release once lint and tests pass.
+Run `mise run release`. The task sets the next version in `mix.exs`,
+regenerates `CHANGELOG.md`, and shows the new changelog section. After
+confirmation, it commits the release and pushes it to `main`. The version is
+computed from the commits since the last release. To override it, pass an
+explicit version (e.g. `mise run release 1.0.0`).
 
-CI publishes only when the release commit is the head of `main`. If the
-release fails, push a fix and repeat the steps.
+CI publishes the package to Hex, tags the release, and creates a GitHub
+release once lint and tests pass. CI publishes only when the release commit is
+the head of `main`. If the release fails, push a fix and run the task again.
