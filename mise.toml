@@ -191,8 +191,9 @@ confirm = "Commit and push the release shown above to main?"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-# In a colocated jj repository, the working-copy change holding the release
-# edits is left behind once jj imports the new Git HEAD.
+# In a colocated jj repository, the working-copy change is left behind once jj
+# imports the new Git HEAD if a snapshot recorded the release edits in it.
+# Without such a snapshot, the change is empty and jj abandons it itself.
 jj_change=""
 if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
   jj_change=$(jj log --no-graph -r @ -T change_id)
@@ -206,7 +207,7 @@ git commit -m "chore(release): $version" -- mix.exs CHANGELOG.md
 committed=true
 git push origin HEAD:main
 if [[ -n "$jj_change" ]]; then
-  jj abandon "$jj_change"
+  jj abandon "present($jj_change)"
 fi
 echo "Pushed release $version; CI publishes it once checks pass"
 '''
