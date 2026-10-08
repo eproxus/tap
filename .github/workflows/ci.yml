@@ -3,6 +3,8 @@ name: CI
 
 on:
   push:
+  # Manual runs preview the next release without publishing.
+  workflow_dispatch:
 
 concurrency:
   group: ${{github.workflow}}-${{github.ref}}
@@ -80,3 +82,133 @@ jobs:
       - run: mix deps.get
 
       - run: mise run --output=keep-order test
+
+  # Pushes to main release the version in mix.exs unless it is already
+  # tagged, so pushing a `mise run release:prepare` commit publishes it.
+  release:
+    name: Release
+
+    runs-on: ubuntu-24.04
+
+    needs: [lint, test]
+
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+
+    permissions:
+      contents: write
+
+    environment: hex
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - uses: jdx/mise-action@1648a7812b9aeae629881980618f079932869151 # v4.0.1
+
+      - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{runner.os}}_${{runner.arch}}-release-${{hashFiles('mise.toml', 'mix.lock')}}
+          restore-keys: |
+            mix-${{runner.os}}_${{runner.arch}}-release-
+
+      - run: mix deps.get
+
+      - name: Check version
+        id: version
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          VERSION=$(sed -n 's/^  @version "\(.*\)"$/\1/p' mix.exs)
+          if [ -z "$VERSION" ]; then
+            echo "::error::No @version found in mix.exs"
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
+            # Released already: preview what release:prepare would produce.
+            VERSION=$(git-cliff v0.1.5..HEAD --bumped-version)
+            VERSION=${VERSION#v}
+            PUBLISH=false
+          elif grep -q "^## \[$VERSION\]" CHANGELOG.md; then
+            PUBLISH=$([ "$EVENT" = push ] && echo true || echo false)
+          else
+            echo "::error::CHANGELOG.md has no $VERSION section; run 'mise run release:prepare'"
+            exit 1
+          fi
+          echo "version=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          echo "Version: v$VERSION (publish: $PUBLISH)"
+
+      - name: Generate changelog
+        id: changelog
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          {
+            echo "changelog<<CHANGELOG_EOF"
+            git-cliff v0.1.5..HEAD --unreleased --tag "$VERSION" --strip all --output - |
+              tail -n +3
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Hex first and the tag second, so an existing tag implies a published
+      # package. Skipping published versions makes failed runs re-runnable.
+      - name: Publish to Hex
+        if: steps.version.outputs.publish == 'true'
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          if mix hex.info tap "${VERSION#v}" > /dev/null 2>&1; then
+            echo "tap ${VERSION#v} is already on Hex"
+          else
+            mix hex.publish --yes
+          fi
+
+      - name: Tag and push
+        if: steps.version.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git tag "$VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub release
+        if: steps.version.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          # Via env var so backticks in the changelog aren't evaluated as
+          # shell command substitution.
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+        run: >-
+          gh release create "$VERSION" --verify-tag
+          --title "$VERSION" --notes "$CHANGELOG"
+
+      - name: Summary
+        env:
+          PUBLISH: ${{ steps.version.outputs.publish }}
+          VERSION: ${{ steps.version.outputs.version }}
+          # Via env var so backticks in the changelog aren't evaluated as
+          # shell command substitution.
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
+        run: |
+          {
+            if [ "$PUBLISH" = "true" ]; then
+              echo "## Released ${VERSION}"
+              echo ""
+              echo "- [GitHub Release](https://github.com/eproxus/tap/releases/tag/${VERSION})"
+              echo "- [Hex Package](https://hex.pm/packages/tap/${VERSION#v})"
+            else
+              echo "## Release Preview"
+            fi
+            echo ""
+            echo "Version: \`${VERSION}\`"
+            echo ""
+            echo "## Changelog"
+            echo ""
+            echo "$CHANGELOG"
+          } >> "$GITHUB_STEP_SUMMARY"

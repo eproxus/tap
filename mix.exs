@@ -1,16 +1,24 @@
 defmodule Tap.MixProject do
   use Mix.Project
 
+  @version "0.1.5"
+  @source_url "https://github.com/eproxus/tap"
+
   def project do
     [
       app: :tap,
       description: "Elixir tracing",
       package: package(),
-      version: "0.1.5",
+      version: @version,
       elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      docs: [extras: ["README.md"]]
+      docs: [
+        main: "readme",
+        extras: ["README.md", "CHANGELOG.md"],
+        source_url: @source_url,
+        source_ref: "v#{@version}"
+      ]
     ]
   end
 
@@ -20,10 +28,10 @@ defmodule Tap.MixProject do
         "Adam Lindberg <hello@alind.io>"
       ],
       licenses: ["Apache-2.0"],
-      source_url: "https://github.com/eproxus/tap",
+      source_url: @source_url,
       links: %{
-        "GitHub" => "https://github.com/eproxus/tap",
-        "Changelog" => "https://github.com/eproxus/tap/blob/master/CHANGELOG.md"
+        "GitHub" => @source_url,
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
       }
     ]
   end
