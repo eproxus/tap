@@ -17,15 +17,11 @@ iex(2)> Tap.call(String.trim(_, _), max: 4)
 2
 iex(3)> String.trim("test", "t")
 "es"
-11:51:36.370105 #PID<0.198.0> String.trim("test", "t")
-
-11:51:36.377859 #PID<0.198.0> String.trim/2 --> "es"
-
+14:23:22.863903 #PID<0.208.0> String.trim("test", "t")
+14:23:22.889608 #PID<0.208.0> String.trim/2 --> "es"
 iex(4)> String.trim("test", ?t)
-11:51:44.140333 #PID<0.198.0> String.trim("test", 116)
-
-11:51:44.140559 #PID<0.198.0> String.trim/2 ** (FunctionClauseError) no function clause matches
-
+14:23:25.876960 #PID<0.208.0> String.trim("test", 116)
+14:23:25.877830 #PID<0.208.0> String.trim/2 ** (FunctionClauseError) no function clause matches
 Recon tracer rate limit tripped.
 ** (FunctionClauseError) no function clause matching in String.trim/2
 

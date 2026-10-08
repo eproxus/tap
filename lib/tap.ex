@@ -165,21 +165,6 @@ defmodule Tap do
     |> escape()
   end
 
-  @doc ~S"""
-
-  Formatting the output
-
-  ## Examples
-
-      iex(1)> Tap.format({{1.0,1.0,1.0},""},"test")
-      "1.0:1.0:1.000000 \"\" test\n\n"
-      
-  """
-  def format({{hour, min, sec}, pid}, message) do
-    sec = :erlang.float_to_binary(sec, decimals: 6)
-    "#{hour}:#{min}:#{sec} #{inspect(pid)} #{message}\n\n"
-  end
-
   defp expand(specs), do: for(s <- specs, do: spec(s))
 
   defp spec({m, f, p}), do: {m, f, pattern(p)}
@@ -207,8 +192,10 @@ defmodule Tap do
 
   defp time({_, _, micro} = stamp) do
     {_, {h, m, s}} = :calendar.now_to_local_time(stamp)
-    {h, m, s + micro / 1_000_000}
+    Time.new!(h, m, s, {micro, 6})
   end
+
+  defp format({time, pid}, message), do: "#{time} #{inspect(pid)} #{message}\n"
 
   # Recon's formatter prints the result as a format string.
   defp escape(output) do

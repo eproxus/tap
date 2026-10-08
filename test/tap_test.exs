@@ -121,10 +121,59 @@ defmodule TapTest do
     end
   end
 
+  describe "trace output" do
+    test "ends each event with a single newline" do
+      output =
+        capture(fn ->
+          Tap.calls([{Target, :add, :_}], 2)
+          Target.add(1, 1)
+          Target.add(1, 2)
+        end)
+
+      assert [_, _, @tripped <> "\n"] =
+               String.split(output, ~r/(?<=\n)/, trim: true)
+    end
+
+    test "prefixes each event with a zero-padded timestamp" do
+      output =
+        capture(fn ->
+          Tap.call(Target.add(_, _), 1)
+          Target.add(1, 2)
+        end)
+
+      [event | _] = String.split(output, "\n")
+
+      assert event =~
+               ~r/^\d{2}:\d{2}:\d{2}\.\d{6} #PID<[\d.]+> TapTest.Target.add\(1, 2\)$/
+    end
+  end
+
+  describe "format/1" do
+    test "zero-pads every timestamp component" do
+      [utc] =
+        :calendar.local_time_to_universal_time_dst({{2026, 1, 15}, {9, 5, 3}})
+
+      seconds = :calendar.datetime_to_gregorian_seconds(utc) - 62_167_219_200
+      stamp = {div(seconds, 1_000_000), rem(seconds, 1_000_000), 42}
+      pid = self()
+
+      assert Tap.format({:trace_ts, pid, :call, {Target, :add, [1, 2]}, stamp}) ==
+               "09:05:03.000042 #{inspect(pid)} TapTest.Target.add(1, 2)\n"
+    end
+  end
+
+  # Runs fun and returns its trace output as lines without timestamp and pid.
+  defp trace(fun) do
+    fun
+    |> capture()
+    |> String.split("\n", trim: true)
+    |> Enum.map(&String.replace(&1, ~r/^\S+ #PID<[\d.]+> /, ""))
+  end
+
   # Runs fun with its trace output captured. Recon's formatter prints to the
   # group leader of the process that starts the trace, and prints the rate
   # limit line after the last event.
-  defp trace(fun) do
+  defp capture(fun) do
     {:ok, io} = StringIO.open("")
     leader = Process.group_leader()
     Process.group_leader(self(), io)
@@ -135,10 +184,7 @@ defmodule TapTest do
       Process.group_leader(self(), leader)
     end
 
-    io
-    |> await_output(100)
-    |> String.split("\n", trim: true)
-    |> Enum.map(&String.replace(&1, ~r/^\S+ #PID<[\d.]+> /, ""))
+    await_output(io, 100)
   end
 
   defp await_output(io, retries) do
