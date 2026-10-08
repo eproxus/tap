@@ -6,6 +6,8 @@ defmodule TapTest.Target do
   def add(a, b, c), do: a + b + c
 
   def fail(message), do: raise(ArgumentError, message)
+
+  def identity(value), do: value
 end
 
 defmodule TapTest do
@@ -54,6 +56,17 @@ defmodule TapTest do
              end) == [
                "TapTest.Target.add(1, 2)",
                "TapTest.Target.add/2 --> 3",
+               @tripped
+             ]
+    end
+
+    test "prints arguments and return values containing a tilde" do
+      assert trace(fn ->
+               Tap.call(Target.identity(_), 2)
+               Target.identity("~p")
+             end) == [
+               ~s|TapTest.Target.identity("~p")|,
+               ~s|TapTest.Target.identity/1 --> "~p"|,
                @tripped
              ]
     end

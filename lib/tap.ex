@@ -162,6 +162,7 @@ defmodule Tap do
       _ ->
         :recon_trace.format(event)
     end
+    |> escape()
   end
 
   @doc ~S"""
@@ -207,5 +208,10 @@ defmodule Tap do
   defp time({_, _, micro} = stamp) do
     {_, {h, m, s}} = :calendar.now_to_local_time(stamp)
     {h, m, s + micro / 1_000_000}
+  end
+
+  # Recon's formatter prints the result as a format string.
+  defp escape(output) do
+    output |> IO.chardata_to_string() |> String.replace("~", "~~")
   end
 end
