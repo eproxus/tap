@@ -97,11 +97,19 @@ defmodule Tap do
       #     {"~p:~p/~p", [M,F,Arity]};
       ## {trace, Pid, return_from, {M, F, Arity}, ReturnValue}
       {:return_from, [{m, f, a}, return]} ->
-        format(meta, [Exception.format_mfa(m, f, a), " --> ", inspect(return, pretty: true)])
+        format(meta, [
+          Exception.format_mfa(m, f, a),
+          " --> ",
+          inspect(return, pretty: true)
+        ])
 
       ## {trace, Pid, exception_from, {M, F, Arity}, {Class, Value}}
       {:exception_from, [{m, f, a}, {class, reason}]} ->
-        format(meta, [Exception.format_mfa(m, f, a), ?\s, Exception.format(class, reason)])
+        format(meta, [
+          Exception.format_mfa(m, f, a),
+          ?\s,
+          Exception.format(class, reason)
+        ])
 
       # {"~p:~p/~p ~p ~p", [M,F,Arity, Class, Val]};
       ## {trace, Pid, spawn, Spawned, {M, F, Args}}
@@ -167,7 +175,8 @@ defmodule Tap do
       
   """
   def format({{hour, min, sec}, pid}, message) do
-    "#{hour}:#{min}:#{:erlang.float_to_binary(sec, decimals: 6)} #{inspect(pid)} #{message}\n\n"
+    sec = :erlang.float_to_binary(sec, decimals: 6)
+    "#{hour}:#{min}:#{sec} #{inspect(pid)} #{message}\n\n"
   end
 
   defp expand(specs), do: for(s <- specs, do: spec(s))
