@@ -6,3 +6,5 @@ erl_crash.dump
 *.ez
 tap-*.tar
 /tmp/
+# rebar3 only runs tooling plugins; mix.lock pins the dependencies.
+/rebar.lock

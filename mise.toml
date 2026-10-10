@@ -1,6 +1,8 @@
 [tools]
 erlang = "29.1.1"
 elixir = "1.20.4-otp-29"
+rebar = "3.27.1"
+"github:WhatsApp/erlang-language-platform" = { version = "2026-10-05", matching = "otp-29.0", exe = "elp" }
 actionlint = "1.7.12"
 gh = "2.102.0"
 git-cliff = "2.14.2"
@@ -12,6 +14,7 @@ yamllint = "1.38.0"
 description = "Format all code"
 run = """
 mix format
+rebar3 fmt
 mise fmt
 """
 
@@ -20,6 +23,8 @@ mise fmt
 # build directory), while each task can still be run individually.
 [tasks."verify:mix:compile"]
 description = "Compile with warnings as errors"
+# mix compile --warnings-as-errors does not fail on Erlang warnings.
+env = { ERL_COMPILER_OPTIONS = "warnings_as_errors" }
 run = "mix compile --force --warnings-as-errors"
 
 [tasks."verify:mix:format"]
@@ -58,6 +63,39 @@ depends = [
   "verify:mix:docs",
 ]
 
+# The verify:rebar:* tasks are chained like verify:mix:*, as rebar3 cannot run
+# concurrently either.
+[tasks."verify:rebar:format"]
+description = "Check Erlang code formatting"
+env = { QUIET = "1" }
+run = "rebar3 fmt --check"
+
+[tasks."verify:rebar:lint"]
+description = "Run elvis lint checks"
+env = { QUIET = "1" }
+wait_for = ["verify:rebar:format"]
+run = "rebar3 lint"
+
+[tasks."verify:rebar"]
+description = "Run rebar3 verification checks"
+depends = ["verify:rebar:format", "verify:rebar:lint"]
+
+[tasks."verify:elp"]
+description = "Run ELP lint and eqWAlizer checks"
+# elp eqwalize-all --rebar runs rebar3.
+wait_for = ["verify:rebar:lint"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# elp lint exits 0 even when it reports diagnostics.
+diagnostics=$(elp lint --no-connect --path src --severity warning --color never)
+if [[ -n "$diagnostics" ]]; then
+  echo "$diagnostics"
+  exit 1
+fi
+elp eqwalize-all --no-connect --rebar --bail-on-error
+'''
+
 [tasks."verify:markdown"]
 description = "Lint Markdown files"
 run = 'markdownlint-cli2 "**/*.md" "!_build" "!deps" "!doc" "!cover" "!tmp"'
@@ -72,24 +110,27 @@ run = "actionlint"
 
 [tasks.verify]
 description = "Run all verification checks"
-depends = ["verify:mix", "verify:markdown", "verify:yaml", "verify:actions"]
+depends = [
+  "verify:mix",
+  "verify:rebar",
+  "verify:elp",
+  "verify:markdown",
+  "verify:yaml",
+  "verify:actions",
+]
 
 [tasks."release:version"]
-description = "Print the version in mix.exs"
+description = "Print the version in src/tap.app.src"
 quiet = true
 run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-version=$(sed -n 's/^  @version "\(.*\)"$/\1/p' mix.exs)
-if [[ -z "$version" ]]; then
-  echo "No @version found in mix.exs" >&2
-  exit 1
-fi
-echo "$version"
+erl -noshell -eval '
+  {ok, [{application, tap, App}]} = file:consult("src/tap.app.src"),
+  io:format("~s~n", [proplists:get_value(vsn, App)]),
+  halt().'
 '''
 
 [tasks."release:check"]
-description = "Check that the version in mix.exs is prepared and untagged"
+description = "Check that the version in src/tap.app.src is prepared and untagged"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -105,7 +146,7 @@ fi
 '''
 
 [tasks."release:notes"]
-description = "Print the CHANGELOG.md section for the version in mix.exs"
+description = "Print the CHANGELOG.md section for the version in src/tap.app.src"
 quiet = true
 run = '''
 #!/usr/bin/env bash
@@ -133,7 +174,7 @@ awk -v heading="## [$version]" '
 '''
 
 [tasks."release:prepare"]
-description = "Set the release version in mix.exs and regenerate CHANGELOG.md"
+description = "Set the release version in src/tap.app.src and regenerate CHANGELOG.md"
 usage = '''
 arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"
 flag "--dry-run" help="Print the changelog section instead of writing files"
@@ -154,8 +195,16 @@ if [[ "${usage_dry_run:-}" == true ]]; then
   git-cliff "$range" --unreleased --tag "v$version" --strip all
   exit
 fi
-perl -pi -e 's/^  \@version "[^"]*"$/  \@version "'"$version"'"/' mix.exs
-grep -q "^  @version \"$version\"$" mix.exs
+# Rewrites file with the sed script. POSIX sed has no in-place flag.
+replace() {
+  sed "$2" "$1" > "$1.tmp"
+  mv "$1.tmp" "$1"
+}
+replace src/tap.app.src 's/^    {vsn, "[^"]*"},$/    {vsn, "'"$version"'"},/'
+if [[ "$(mise run --quiet release:version)" != "$version" ]]; then
+  echo "Could not set the vsn in src/tap.app.src to $version" >&2
+  exit 1
+fi
 git-cliff "$range" --tag "v$version" --output CHANGELOG.md
 echo "Prepared release $version"
 '''
@@ -205,11 +254,12 @@ if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
   jj_change=$(jj log --no-graph -r @ -T change_id)
 fi
 committed=false
-trap '[[ $committed == true ]] || git checkout HEAD -- mix.exs CHANGELOG.md' EXIT
+files=(src/tap.app.src CHANGELOG.md)
+trap '[[ $committed == true ]] || git checkout HEAD -- "${files[@]}"' EXIT
 mise run release:prepare ${usage_version:+"$usage_version"}
 mise run release:check
 version=$(mise run --quiet release:version)
-git commit -m "chore(release): $version" -- mix.exs CHANGELOG.md
+git commit -m "chore(release): $version" -- "${files[@]}"
 committed=true
 git push origin HEAD:main
 if [[ -n "$jj_change" ]]; then

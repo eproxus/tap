@@ -1,0 +1,12 @@
+{application, tap, [
+    {description, "Elixir tracing"},
+    {vsn, "0.3.0"},
+    {registered, []},
+    {applications, [kernel, stdlib]},
+    {env, []},
+    {licenses, ["MIT"]},
+    {links, [
+        {"GitHub", "https://github.com/eproxus/tap"},
+        {"Changelog", "https://github.com/eproxus/tap/blob/main/CHANGELOG.md"}
+    ]}
+]}.

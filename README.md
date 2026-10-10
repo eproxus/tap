@@ -50,7 +50,7 @@ shell and stops at its event limit or when the shell exits.
 
 Run `mise run release` on a clean working copy of `origin/main`. The task first
 shows the changelog section of the next release. After confirmation, it sets
-the version in `mix.exs`, regenerates `CHANGELOG.md`, commits the release, and
+the version in `src/tap.app.src`, regenerates `CHANGELOG.md`, commits the release, and
 pushes it to `main`. The version is computed from the commits since the last
 release. To override it, pass an explicit version (e.g. `mise run release
 1.0.0`). To only show the changelog section, run `mise run release:preview`.

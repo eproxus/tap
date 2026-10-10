@@ -83,9 +83,9 @@ jobs:
 
       - run: mise run --output=keep-order test
 
-  # Pushes to main publish the version in mix.exs when the head commit is its
-  # untagged release commit (`chore(release): <version>`). Other runs preview
-  # the next release.
+  # Pushes to main publish the version in src/tap.app.src when the head commit
+  # is its untagged release commit (`chore(release): <version>`). Other runs
+  # preview the next release.
   release-check:
     name: Release check
 

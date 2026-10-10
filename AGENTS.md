@@ -15,6 +15,10 @@ native Elixir formatting and macros for creating traces.
   session and tracer process per trace, owner detection, limits and stop
   reasons. It takes a formatter fun, so other front ends can reuse it
 
+Mix builds the project. `rebar.config` only configures the Erlang tooling
+(erlfmt, elvis); ELP reads `src/tap.app.src` through it. `src/tap.app.src`
+holds the version and package metadata; `mix.exs` reads them from it.
+
 ## Build & Development Commands
 
 ```sh
@@ -31,6 +35,8 @@ mise run release:prepare [VERSION]   # Set the release version and changelog
   act on the return value at the call site, an exception should be used.
 * Keep public functions at the top of the module
 * Keep private functions below, sorted in the order of appearance in the module
+* Erlang code has `-spec` attributes for every function; `verify` runs
+  eqWAlizer on it
 
 ## Commits and Releases
 

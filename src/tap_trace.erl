@@ -6,6 +6,18 @@
     limit => 2, pid => all, scope => global, inspect => fun inspect/1
 }).
 
+% The caller waits for a monitored tracer, and the tracer loop runs until it
+% stops the session. Printing trace output is the purpose of print/2 and
+% crash/4.
+-elvis([
+    {elvis_style, no_receive_without_timeout, #{
+        ignore => [{tap_trace, start_tracer, 2}, {tap_trace, loop, 1}]
+    }},
+    {elvis_style, no_debug_call, #{
+        ignore => [{tap_trace, print, 2}, {tap_trace, crash, 4}]
+    }}
+]).
+
 % API
 -export([start/2, format_error/2]).
 

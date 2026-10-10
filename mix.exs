@@ -1,13 +1,22 @@
 defmodule Tap.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
-  @source_url "https://github.com/eproxus/tap"
+  # src/tap.app.src holds the version and package metadata, so that rebar3
+  # builds and Mix builds share them. Hex packages must include it.
+  {:ok, [{:application, :tap, app}]} =
+    :file.consult(Path.join(__DIR__, "src/tap.app.src"))
+
+  @app Map.new(app)
+  @version to_string(@app.vsn)
+  @links Map.new(@app.links, fn {name, url} ->
+           {to_string(name), to_string(url)}
+         end)
+  @source_url @links["GitHub"]
 
   def project do
     [
       app: :tap,
-      description: "Elixir tracing",
+      description: to_string(@app.description),
       package: package(),
       version: @version,
       elixir: "~> 1.20",
@@ -27,12 +36,9 @@ defmodule Tap.MixProject do
       maintainers: [
         "Adam Lindberg <hello@alind.io>"
       ],
-      licenses: ["MIT"],
+      licenses: Enum.map(@app.licenses, &to_string/1),
       source_url: @source_url,
-      links: %{
-        "GitHub" => @source_url,
-        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
-      }
+      links: @links
     ]
   end
 
