@@ -27,7 +27,7 @@ defmodule Tap.MixProject do
       maintainers: [
         "Adam Lindberg <hello@alind.io>"
       ],
-      licenses: ["Apache-2.0"],
+      licenses: ["MIT"],
       source_url: @source_url,
       links: %{
         "GitHub" => @source_url,

@@ -11,7 +11,7 @@
 
 ## License
 
-`tap` is licensed under the [Apache License 2.0](LICENSE), for all code.
+`tap` is licensed under the [MIT License](LICENSE), for all code.
 
 ## Reporting a bug
 
