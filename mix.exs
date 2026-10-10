@@ -37,13 +37,11 @@ defmodule Tap.MixProject do
   end
 
   def application do
-    [extra_applications: [:runtime_tools]]
+    []
   end
 
   defp deps do
     [
-      {:recon, "~> 2.5"},
-
       # Linting
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
 

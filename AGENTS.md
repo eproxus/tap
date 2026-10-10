@@ -4,13 +4,16 @@ This file provides guidance to agents when working with code in this repository.
 
 ## `tap` Overview
 
-Elixir tracing library. Wraps Recon's `:recon_trace`, adding native Elixir
-formatting and macros for creating traces.
+Elixir tracing library. Traces through OTP trace sessions (OTP 27+), with
+native Elixir formatting and macros for creating traces.
 
 ## Architecture
 
-* `Tap` - the whole public API: the `Tap.call/2` macro, `Tap.calls/2`, and
-  the trace event formatter `Tap.format/1`
+* `Tap` - the whole public API: the `Tap.call/2` macro, and the private
+  trace event formatter
+* `tap_trace` (`src/tap_trace.erl`) - internal tracing engine: one trace
+  session and tracer process per trace, owner detection, limits and stop
+  reasons. It takes a formatter fun, so other front ends can reuse it
 
 ## Build & Development Commands
 

@@ -2,15 +2,40 @@ defmodule Tap do
   @moduledoc """
   Tracing of Elixir and Erlang functions.
 
-  Wraps [Recon](https://github.com/ferd/recon)'s `:recon_trace`, adding
-  native Elixir formatting and macros for creating traces.
+  Each trace runs in its own OTP trace session, so concurrent traces do not
+  affect each other.
   """
-
-  @default [formatter: &__MODULE__.format/1]
 
   @doc ~S"""
   Traces calls, return values and exceptions from the function call template
   given as an argument.
+
+  The template names a module, a function and its arguments. An argument is
+  either `_`, which matches any value, or a value that the argument must
+  equal. Only the template's arity is traced. Raises
+  `UndefinedFunctionError` if the function does not exist.
+
+  Each event is printed to the group leader of the calling process. Returns
+  the number of traced functions.
+
+  A trace stops, and prints the reason, when the limit is reached or when its
+  owner exits. A trace started at the shell prompt belongs to the shell, so
+  errors in the shell do not stop it. A trace started in any other process
+  belongs to that process.
+
+  ## Options
+
+  `opts` is a keyword list, or an integer as a shorthand for `limit:`.
+
+    * `:limit` - the number of events after which the trace stops, a
+      positive integer. A call and its return value or exception are two
+      events. Defaults to `2`.
+    * `:pid` - the processes to trace: a pid, a non-empty list of pids,
+      `:all`, `:new` or `:existing`. Defaults to `:all`. Raises if a single
+      pid is dead or on another node. A list skips such pids, prints a line
+      for each, and raises if none is left.
+    * `:scope` - `:global` traces only fully qualified calls, `:local` also
+      traces local calls. Defaults to `:global`.
 
   ## Examples
 
@@ -22,7 +47,12 @@ defmodule Tap do
   Trace calls to `&String.starts_with?/2` when the second argument is
   `"b"` and print the first event:
 
-      iex> Tap.call(String.starts_with?(_, "b"), 1)
+      iex> Tap.call(String.starts_with?(_, "b"), limit: 1)
+      1
+
+  Trace calls from the current process only:
+
+      iex> Tap.call(String.starts_with?(_, _), pid: self())
       1
   """
   defmacro call(mfa, opts) do
@@ -35,170 +65,61 @@ defmodule Tap do
       end)
 
     quote do
-      Tap.calls(
-        [
-          {
-            unquote(module),
-            unquote(function),
-            [{unquote(args), [], [{:exception_trace}]}]
-          }
-        ],
+      Tap.__trace__(
+        {unquote(module), unquote(function), unquote(args)},
         unquote(opts)
       )
     end
   end
 
-  @doc ~S"""
-  Traces on the function patterns given as an argument.
+  @doc false
+  def __trace__(template, limit) when is_integer(limit),
+    do: __trace__(template, limit: limit)
 
-  ## Examples
-
-  Trace calls (but not return values) to `&String.trim` with any number of
-  arguments and print the first ten events:
-
-      iex> Tap.calls([{String, :trim, :_}], max: 10)
-      2
-
-  Trace calls and return values from `&String.trim/2` and print the first ten
-  events:
-
-      iex> Tap.calls([{String, :trim, {2, :return}}], max: 10)
-      2
-
-  """
-  def calls(tspecs, opts) when is_integer(opts), do: calls(tspecs, max: opts)
-
-  def calls(tspecs, opts) do
-    max = Keyword.get(opts, :max, 2)
-    opts = Keyword.merge(@default, Keyword.drop(opts, [:max]))
-    :recon_trace.calls(expand(tspecs), max, opts)
+  def __trace__(template, opts) do
+    :tap_trace.start(
+      template,
+      opts
+      |> Map.new()
+      |> Map.merge(%{formatter: &format/1, inspect: &inspect/1})
+    )
   end
 
-  def format(event) do
-    {type, info, meta} = extract(event)
+  defp format({:stop, {:limit, limit}, _time}),
+    do: "Trace stopped: limit of #{limit} events reached"
 
-    case {type, info} do
-      ## {:trace, pid, :receive, msg}
-      {:receive, [msg]} ->
-        format(meta, "< #{inspect(msg, pretty: true)}")
+  defp format({:stop, {:exit, :shell, pid}, _time}),
+    do: "Trace stopped: shell #{inspect(pid)} exited"
 
-      ## {trace, Pid, send, Msg, To}
-      # {send, [Msg, To]} ->
-      #     {" > ~p: ~p", [To, Msg]};
-      ## {trace, Pid, send_to_non_existing_process, Msg, To}
-      # {send_to_non_existing_process, [Msg, To]} ->
-      #     {" > (non_existent) ~p: ~p", [To, Msg]};
-      ## {trace, Pid, call, {M, F, Args}}
-      {:call, [{m, f, a}]} ->
-        format(meta, Exception.format_mfa(m, f, a))
+  defp format({:stop, {:exit, :process, pid}, _time}),
+    do: "Trace stopped: #{inspect(pid)} exited"
 
-      ## {trace, Pid, return_to, {M, F, Arity}}
-      # {return_to, [{M,F,Arity}]} ->
-      #     {"~p:~p/~p", [M,F,Arity]};
-      ## {trace, Pid, return_from, {M, F, Arity}, ReturnValue}
-      {:return_from, [{m, f, a}, return]} ->
-        format(meta, [
-          Exception.format_mfa(m, f, a),
-          " --> ",
-          inspect(return, pretty: true)
-        ])
+  defp format({:skip, {:not_alive, pid}, _time}),
+    do: "Trace skipped: #{inspect(pid)} is not alive"
 
-      ## {trace, Pid, exception_from, {M, F, Arity}, {Class, Value}}
-      {:exception_from, [{m, f, a}, {class, reason}]} ->
-        format(meta, [
-          Exception.format_mfa(m, f, a),
-          ?\s,
-          Exception.format(class, reason)
-        ])
+  defp format({:skip, {:remote, pid}, _time}),
+    do: "Trace skipped: #{inspect(pid)} is not on this node"
 
-      # {"~p:~p/~p ~p ~p", [M,F,Arity, Class, Val]};
-      ## {trace, Pid, spawn, Spawned, {M, F, Args}}
-      # {spawn, [Spawned, {M,F,Args}]}  ->
-      #     {"spawned ~p as ~p:~p~s", [Spawned, M, F, format_args(Args)]};
-      ## {trace, Pid, exit, Reason}
-      # {exit, [Reason]} ->
-      #     {"EXIT ~p", [Reason]};
-      ## {trace, Pid, link, Pid2}
-      # {link, [Linked]} ->
-      #     {"link(~p)", [Linked]};
-      ## {trace, Pid, unlink, Pid2}
-      # {unlink, [Linked]} ->
-      #     {"unlink(~p)", [Linked]};
-      ## {trace, Pid, getting_linked, Pid2}
-      # {getting_linked, [Linker]} ->
-      #     {"getting linked by ~p", [Linker]};
-      ## {trace, Pid, getting_unlinked, Pid2}
-      # {getting_unlinked, [Unlinker]} ->
-      #     {"getting unlinked by ~p", [Unlinker]};
-      ## {trace, Pid, register, RegName}
-      # {register, [Name]} ->
-      #     {"registered as ~p", [Name]};
-      ## {trace, Pid, unregister, RegName}
-      # {unregister, [Name]} ->
-      #     {"no longer registered as ~p", [Name]};
-      ## {trace, Pid, in, {M, F, Arity} | 0}
-      # {in, [{M,F,Arity}]} ->
-      #     {"scheduled in for ~p:~p/~p", [M,F,Arity]};
-      # {in, [0]} ->
-      #     {"scheduled in", []};
-      ## {trace, Pid, out, {M, F, Arity} | 0}
-      # {out, [{M,F,Arity}]} ->
-      #     {"scheduled out from ~p:~p/~p", [M, F, Arity]};
-      # {out, [0]} ->
-      #     {"scheduled out", []};
-      ## {trace, Pid, gc_start, Info}
-      # {gc_start, [Info]} ->
-      #     HeapSize = proplists:get_value(heap_size, Info),
-      #     {"gc beginning -- heap ~p bytes", [HeapSize]};
-      ## {trace, Pid, gc_end, Info}
-      # {gc_end, [Info]} ->
-      #     [Info] = TraceInfo,
-      #     HeapSize = proplists:get_value(heap_size, Info),
-      #     OldHeapSize = proplists:get_value(old_heap_size, Info),
-      #     {"gc finished -- heap ~p bytes (recovered ~p bytes)",
-      #      [HeapSize, OldHeapSize-HeapSize]};
-      # _ ->
-      #     {"unknown trace type ~p -- ~p", [Type, TraceInfo]}
-      _ ->
-        :recon_trace.format(event)
-    end
-    |> escape()
+  defp format({:trace_ts, pid, :call, {m, f, args}, _time}),
+    do: format(pid, Exception.format_mfa(m, f, args))
+
+  defp format({:trace_ts, pid, :return_from, {m, f, a}, return, _time}) do
+    format(pid, [
+      Exception.format_mfa(m, f, a),
+      " --> ",
+      inspect(return, pretty: true)
+    ])
   end
 
-  defp expand(specs), do: for(s <- specs, do: spec(s))
-
-  defp spec({m, f, p}), do: {m, f, pattern(p)}
-  defp spec(s), do: s
-
-  defp pattern({arity, :return}) do
-    [{for(_ <- 1..arity, do: :_), [], [{:exception_trace}]}]
+  defp format(
+         {:trace_ts, pid, :exception_from, {m, f, a}, {class, reason}, _time}
+       ) do
+    format(pid, [
+      Exception.format_mfa(m, f, a),
+      ?\s,
+      Exception.format(class, reason)
+    ])
   end
 
-  defp pattern({arity, :r}), do: pattern({arity, :return})
-  defp pattern(:return), do: [{:_, [], [{:exception_trace}]}]
-  defp pattern(:r), do: pattern(:return)
-  defp pattern(p), do: p
-
-  defp extract(event) do
-    case Tuple.to_list(event) do
-      [:trace_ts, pid, type | rest] ->
-        {meta, [stamp]} = Enum.split(rest, length(rest) - 1)
-        {type, meta, {time(stamp), pid}}
-
-      [:trace, pid, type | meta] ->
-        {type, meta, {time(:os.timestamp()), pid}}
-    end
-  end
-
-  defp time({_, _, micro} = stamp) do
-    {_, {h, m, s}} = :calendar.now_to_local_time(stamp)
-    Time.new!(h, m, s, {micro, 6})
-  end
-
-  defp format({time, pid}, message), do: "#{time} #{inspect(pid)} #{message}\n"
-
-  # Recon's formatter prints the result as a format string.
-  defp escape(output) do
-    output |> IO.chardata_to_string() |> String.replace("~", "~~")
-  end
+  defp format(pid, message), do: [inspect(pid), ?\s, message]
 end
