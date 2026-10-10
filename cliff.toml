@@ -44,7 +44,7 @@ body = """
             {% if commit.remote.pr_number %} in \
             [#{{ commit.remote.pr_number }}]({{ self::remote_url() }}/pull/{{ commit.remote.pr_number }}) \
             {%- endif -%}
-            {%- if commit.group == "Added" and commit.body %}
+            {%- if commit.body and (commit.group == "Added" or commit.group == "Fixed" or commit.group == "Performance") %}
 
 {{ commit.body | trim | indent(prefix="  ", first=true, blank=false) }}
             {%- endif -%}
