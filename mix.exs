@@ -10,7 +10,7 @@ defmodule Tap.MixProject do
       description: "Elixir tracing",
       package: package(),
       version: @version,
-      elixir: "~> 1.17",
+      elixir: "~> 1.20",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       docs: [
