@@ -2,6 +2,7 @@
 erlang = "29.1.1"
 elixir = "1.20.4-otp-29"
 actionlint = "1.7.12"
+gh = "2.102.0"
 git-cliff = "2.14.2"
 markdownlint-cli2 = "0.23.3"
 shellcheck = "0.11.0"
@@ -165,11 +166,16 @@ usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commi
 run = 'mise run --quiet release:prepare --dry-run ${usage_version:+"$usage_version"}'
 
 [tasks."release:ready"]
-description = "Check that HEAD is origin/main and the working copy is clean"
+description = "Check that HEAD is origin/main, the working copy is clean, and gh is logged in"
 wait_for = ["release:preview"]
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
+# release watches the CI run of the release commit with gh after pushing it.
+if ! gh auth status > /dev/null; then
+  echo "gh is not logged in; run 'gh auth login'" >&2
+  exit 1
+fi
 git fetch origin
 if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   echo "HEAD is not origin/main" >&2
@@ -182,7 +188,7 @@ fi
 '''
 
 [tasks.release]
-description = "Preview a release, then commit it and push it to main"
+description = "Preview a release, then commit it, push it to main, and watch CI publish it"
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
 # release:ready waits for release:preview, so the changelog section is printed
 # even when the repository is not ready for a release.
@@ -209,7 +215,39 @@ git push origin HEAD:main
 if [[ -n "$jj_change" ]]; then
   jj abandon "present($jj_change)"
 fi
-echo "Pushed release $version; CI publishes it once checks pass"
+echo "Pushed release $version; watching CI publish it"
+# CI creates the run a few seconds after the push.
+sha=$(git rev-parse HEAD)
+run_id=""
+for _ in {1..30}; do
+  run_id=$(gh run list --commit "$sha" --workflow ci.yml --event push \
+    --json databaseId --jq '.[0].databaseId')
+  if [[ -n "$run_id" ]]; then
+    break
+  fi
+  sleep 2
+done
+if [[ -z "$run_id" ]]; then
+  echo "No CI run found for $sha" >&2
+  exit 1
+fi
+# The release commit is on main at this point, so failures are reported with
+# a way to recover instead of being undone.
+if ! gh run watch "$run_id" --exit-status --compact --interval 10; then
+  echo "CI failed for release $version; rerun the failed jobs with:" >&2
+  echo "  gh run rerun --failed $run_id" >&2
+  exit 1
+fi
+# The run also succeeds when release-check decides not to publish.
+release=$(gh run view "$run_id" --json jobs \
+  --jq '.jobs[] | select(.name == "Release") | .conclusion')
+if [[ "$release" != success ]]; then
+  echo "CI did not publish release $version (Release job: ${release:-missing})" >&2
+  exit 1
+fi
+echo "Released $version"
+echo "  https://github.com/eproxus/tap/releases/tag/v$version"
+echo "  https://hex.pm/packages/tap/$version"
 '''
 
 [tasks.test]
