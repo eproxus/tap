@@ -114,7 +114,7 @@ jobs:
           VERSION=$(mise run --quiet release:version)
           if [ "$(git log -1 --format=%s)" = "chore(release): $VERSION" ] &&
             ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
-            mise run release:check
+            mise run release:prepare --check "$VERSION"
             PUBLISH=$([ "$EVENT" = push ] && echo true || echo false)
           else
             # Preview what release:prepare would produce.

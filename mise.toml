@@ -129,22 +129,6 @@ erl -noshell -eval '
   halt().'
 '''
 
-[tasks."release:check"]
-description = "Check that the version in src/tap.app.src is prepared and untagged"
-run = '''
-#!/usr/bin/env bash
-set -euo pipefail
-version=$(mise run --quiet release:version)
-if ! grep -q "^## \[$version\]" CHANGELOG.md; then
-  echo "CHANGELOG.md has no $version section; run 'mise run release:prepare'" >&2
-  exit 1
-fi
-if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
-  echo "v$version is already tagged" >&2
-  exit 1
-fi
-'''
-
 [tasks."release:notes"]
 description = "Print the CHANGELOG.md section for the version in src/tap.app.src"
 quiet = true
@@ -178,6 +162,7 @@ description = "Set the release version in src/tap.app.src and regenerate CHANGEL
 usage = '''
 arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"
 flag "--dry-run" help="Print the changelog section instead of writing files"
+flag "--check" help="Fail if the version is not prepared instead of writing files"
 '''
 run = '''
 #!/usr/bin/env bash
@@ -191,8 +176,20 @@ if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "Invalid version: $version" >&2
   exit 1
 fi
+if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
+  echo "v$version is already tagged" >&2
+  exit 1
+fi
 if [[ "${usage_dry_run:-}" == true ]]; then
   git-cliff "$range" --unreleased --tag "v$version" --strip all
+  exit
+fi
+if [[ "${usage_check:-}" == true ]]; then
+  if [[ "$(mise run --quiet release:version)" != "$version" ]] ||
+    ! git-cliff "$range" --tag "v$version" | cmp -s - CHANGELOG.md; then
+    echo "Release $version is not prepared; run 'mise run release:prepare $version'" >&2
+    exit 1
+  fi
   exit
 fi
 # Rewrites file with the sed script. POSIX sed has no in-place flag.
@@ -253,13 +250,13 @@ jj_change=""
 if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
   jj_change=$(jj log --no-graph -r @ -T change_id)
 fi
+# release:ready ensures that all changes to tracked files come from
+# release:prepare.
 committed=false
-files=(src/tap.app.src CHANGELOG.md)
-trap '[[ $committed == true ]] || git checkout HEAD -- "${files[@]}"' EXIT
+trap '[[ $committed == true ]] || git checkout HEAD -- .' EXIT
 mise run release:prepare ${usage_version:+"$usage_version"}
-mise run release:check
 version=$(mise run --quiet release:version)
-git commit -m "chore(release): $version" -- "${files[@]}"
+git commit -a -m "chore(release): $version"
 committed=true
 git push origin HEAD:main
 if [[ -n "$jj_change" ]]; then
