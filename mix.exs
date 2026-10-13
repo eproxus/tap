@@ -25,6 +25,8 @@ defmodule Tap.MixProject do
       docs: [
         main: "readme",
         extras: ["README.md", "CHANGELOG.md"],
+        # The changelog mentions functions that were removed.
+        skip_undefined_reference_warnings_on: ["CHANGELOG.md"],
         source_url: @source_url,
         source_ref: "v#{@version}"
       ]
