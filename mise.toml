@@ -11,6 +11,10 @@ pandoc = "3.12.1"
 shellcheck = "0.11.0"
 yamllint = "1.38.0"
 
+[settings]
+# Hides the command line and timing that mise prints for each task.
+task.quiet = true
+
 [tasks.format]
 description = "Format all code"
 run = """
@@ -122,7 +126,6 @@ depends = [
 
 [tasks."release:version"]
 description = "Print the version in src/tap.app.src"
-quiet = true
 run = '''
 erl -noshell -eval '
   {ok, [{application, tap, App}]} = file:consult("src/tap.app.src"),
@@ -132,7 +135,6 @@ erl -noshell -eval '
 
 [tasks."release:notes"]
 description = "Print the CHANGELOG.md section for the version in src/tap.app.src"
-quiet = true
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -165,6 +167,8 @@ arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"
 flag "--dry-run" help="Print the changelog section instead of writing files"
 flag "--check" help="Fail if the version is not prepared instead of writing files"
 '''
+# Hides the INFO logs of git-cliff.
+env = { RUST_LOG = "warn" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -219,9 +223,6 @@ echo "Prepared release $version"
 [tasks."release:preview"]
 description = "Print the changelog section of the next release"
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
-quiet = true
-# Hides the INFO logs of git-cliff.
-env = { RUST_LOG = "warn" }
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -258,7 +259,7 @@ if ! gh auth status > /dev/null; then
   echo "gh is not logged in; run 'gh auth login'" >&2
   exit 1
 fi
-git fetch origin
+git fetch --quiet origin
 if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   echo "HEAD is not origin/main" >&2
   exit 1
@@ -284,7 +285,7 @@ set -euo pipefail
 # Without such a snapshot, the change is empty and jj abandons it itself.
 jj_change=""
 if command -v jj > /dev/null && jj root > /dev/null 2>&1; then
-  jj_change=$(jj log --no-graph -r @ -T change_id)
+  jj_change=$(jj log --quiet --no-graph -r @ -T change_id)
 fi
 # release:ready ensures that all changes to tracked files come from
 # release:prepare.
@@ -292,11 +293,11 @@ committed=false
 trap '[[ $committed == true ]] || git checkout HEAD -- .' EXIT
 mise run release:prepare ${usage_version:+"$usage_version"}
 version=$(mise run --quiet release:version)
-git commit -a -m "chore(release): $version"
+git commit --quiet -a -m "chore(release): $version"
 committed=true
-git push origin HEAD:main
+git push --quiet origin HEAD:main
 if [[ -n "$jj_change" ]]; then
-  jj abandon "present($jj_change)"
+  jj abandon --quiet "present($jj_change)"
 fi
 echo "Pushed release $version; watching CI publish it"
 # CI creates the run a few seconds after the push.
