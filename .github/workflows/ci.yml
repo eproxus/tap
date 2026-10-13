@@ -112,22 +112,33 @@ jobs:
           EVENT: ${{ github.event_name }}
         run: |
           VERSION=$(mise run --quiet release:version)
+          CHANGES=true
           if [ "$(git log -1 --format=%s)" = "chore(release): $VERSION" ] &&
             ! git rev-parse -q --verify "refs/tags/v$VERSION" > /dev/null; then
             mise run release:prepare --check "$VERSION"
             PUBLISH=$([ "$EVENT" = push ] && echo true || echo false)
           else
-            # Preview what release:prepare would produce.
-            mise run release:prepare
-            VERSION=$(mise run --quiet release:version)
             PUBLISH=false
+            # Empty when there is nothing to release since the latest tag.
+            PREVIEW=$(mise run --quiet release:prepare --dry-run)
+            if [ -z "$PREVIEW" ]; then
+              CHANGES=false
+            else
+              # Preview what release:prepare would produce.
+              mise run release:prepare
+              VERSION=$(mise run --quiet release:version)
+            fi
           fi
-          echo "version=v$VERSION" >> "$GITHUB_OUTPUT"
-          echo "publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=v$VERSION"
+            echo "publish=$PUBLISH"
+            echo "changes=$CHANGES"
+          } >> "$GITHUB_OUTPUT"
           echo "Version: v$VERSION (publish: $PUBLISH)"
 
       - name: Summary
         env:
+          CHANGES: ${{ steps.version.outputs.changes }}
           PUBLISH: ${{ steps.version.outputs.publish }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -138,11 +149,15 @@ jobs:
               echo "## Release Preview"
             fi
             echo ""
-            echo "Version: \`${VERSION}\`"
-            echo ""
-            echo "## Changelog"
-            echo ""
-            mise run --quiet release:notes
+            if [ "$CHANGES" = "false" ]; then
+              echo "Nothing to release since \`${VERSION}\`"
+            else
+              echo "Version: \`${VERSION}\`"
+              echo ""
+              echo "## Changelog"
+              echo ""
+              mise run --quiet release:notes
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Separate from release-check so that only publishing runs in the hex
