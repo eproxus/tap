@@ -7,6 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-13
+
+### Added
+
+- Run traces independently
+
+  Concurrent `Tap.call/2` traces no longer stop each other, and a trace
+  started in the shell survives errors in the shell. A trace prints why
+  it stopped.
+
+  `Tap.call/2` learned the `pid:` option, which traces only the given
+  processes, and the `scope:` option, which also traces local calls.
+    - **BREAKING**: `Tap.call/2` renamed the `max:` option to `limit:` and
+raises `UndefinedFunctionError` for an undefined function. `Tap.calls/2`
+and `Tap.format/1` are removed.
+
+### Changed
+
+- Require OTP 27 and Elixir 1.20
+    - **BREAKING**: tap requires OTP 27 and Elixir 1.20 or later.
+
 ## [0.3.0] - 2026-10-10
 
 ### Changed
@@ -20,11 +41,19 @@ and this project adheres to
 
 - Zero-pad timestamps and drop blank lines
 
+  Trace timestamps always show two digits for hours, minutes and seconds,
+  and events print on consecutive lines. The helper that formats a single
+  line is no longer public.
+
 ## [0.2.1] - 2026-10-08
 
 ### Fixed
 
 - Escape tildes in trace output
+
+  Recon's formatter uses the trace output as a format string. Doubling
+  each `~` prints traced arguments and return values containing `~` as
+  literal text.
 
 ## [0.2.0] - 2026-10-08
 
@@ -60,6 +89,7 @@ and this project adheres to
 
 - Rename debug\_test.exs to tap\_test.exs [\#1](https://github.com/eproxus/tap/pull/1) ([splattael](https://github.com/splattael))
 
+[0.4.0]: https://github.com/eproxus/tap/compare/v0.3.0..v0.4.0
 [0.3.0]: https://github.com/eproxus/tap/compare/v0.2.2..v0.3.0
 [0.2.2]: https://github.com/eproxus/tap/compare/v0.2.1..v0.2.2
 [0.2.1]: https://github.com/eproxus/tap/compare/v0.2.0..v0.2.1
