@@ -227,7 +227,12 @@ run = '''
 #!/usr/bin/env bash
 set -euo pipefail
 # pandoc renders the Markdown on a terminal only, so piped output stays Markdown.
+# Prints nothing when there is nothing to release.
 render() {
+  changelog=$(cat)
+  if [[ -z "$changelog" ]]; then
+    return
+  fi
   if [[ -t 1 ]]; then
     # Recolors pandoc's fixed styles: inline code from red on white to yellow
     # without padding, lines that are all bold (## headings) to bold blue, and
@@ -236,20 +241,24 @@ render() {
     # Separates the changelog from the command line and the shell prompt.
     echo
     rest="(${e}\[49m${e}\[24m${e}\[29m[^${e}]*${e}\[0m)$"
-    pandoc --from gfm --to ansi | sed -E \
+    printf '%s\n' "$changelog" | pandoc --from gfm --to ansi | sed -E \
       -e "s/${e}\[31m${e}\[47m(${e}\[24m${e}\[29m) ([^${e}]*) ${e}\[0m/${e}[33m${e}[49m\1\2${e}[0m/g" \
       -e "s/^${e}\[1m${e}\[23m${e}\[39m${rest}/${e}[1m${e}[23m${e}[34m\1/" \
       -e "s/^${e}\[22m${e}\[3m${e}\[39m${rest}/${e}[1m${e}[23m${e}[35m\1/"
     echo
   else
-    cat
+    printf '%s\n' "$changelog"
   fi
 }
+# git-cliff computes the next version from the latest tag, and CI creates the
+# tags of published releases.
+git fetch --quiet --tags origin
 mise run --quiet release:prepare --dry-run ${usage_version:+"$usage_version"} | render
 '''
 
 [tasks."release:ready"]
-description = "Check that HEAD is origin/main, the working copy is clean, and gh is logged in"
+description = "Check that there is something to release, HEAD is origin/main, the working copy is clean, and gh is logged in"
+usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
 wait_for = ["release:preview"]
 run = '''
 #!/usr/bin/env bash
@@ -259,7 +268,11 @@ if ! gh auth status > /dev/null; then
   echo "gh is not logged in; run 'gh auth login'" >&2
   exit 1
 fi
-git fetch --quiet origin
+git fetch --quiet --tags origin
+# release:preview already printed why when there is nothing to release.
+if [[ -z "$(mise run release:prepare --dry-run ${usage_version:+"$usage_version"} 2> /dev/null)" ]]; then
+  exit 1
+fi
 if [[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]]; then
   echo "HEAD is not origin/main" >&2
   exit 1
@@ -275,7 +288,10 @@ description = "Preview a release, then commit it, push it to main, and watch CI 
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
 # release:ready waits for release:preview, so the changelog section is printed
 # even when the repository is not ready for a release.
-depends = ["release:preview {{usage.version}}", "release:ready"]
+depends = [
+  "release:preview {{usage.version}}",
+  "release:ready {{usage.version}}",
+]
 confirm = "Commit and push the release shown above to main?"
 run = '''
 #!/usr/bin/env bash
