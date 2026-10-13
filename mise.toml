@@ -7,6 +7,7 @@ actionlint = "1.7.12"
 gh = "2.102.0"
 git-cliff = "2.14.2"
 markdownlint-cli2 = "0.23.3"
+pandoc = "3.12.1"
 shellcheck = "0.11.0"
 yamllint = "1.38.0"
 
@@ -209,7 +210,33 @@ echo "Prepared release $version"
 [tasks."release:preview"]
 description = "Print the changelog section of the next release"
 usage = 'arg "[version]" help="Version, e.g. 0.2.0 (default: computed from commits)"'
-run = 'mise run --quiet release:prepare --dry-run ${usage_version:+"$usage_version"}'
+quiet = true
+# Hides the INFO logs of git-cliff.
+env = { RUST_LOG = "warn" }
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+# pandoc renders the Markdown on a terminal only, so piped output stays Markdown.
+render() {
+  if [[ -t 1 ]]; then
+    # Recolors pandoc's fixed styles: inline code from red on white to yellow
+    # without padding, lines that are all bold (## headings) to bold blue, and
+    # lines that are all italic (### headings) to bold magenta.
+    e=$'\e'
+    # Separates the changelog from the command line and the shell prompt.
+    echo
+    rest="(${e}\[49m${e}\[24m${e}\[29m[^${e}]*${e}\[0m)$"
+    pandoc --from gfm --to ansi | sed -E \
+      -e "s/${e}\[31m${e}\[47m(${e}\[24m${e}\[29m) ([^${e}]*) ${e}\[0m/${e}[33m${e}[49m\1\2${e}[0m/g" \
+      -e "s/^${e}\[1m${e}\[23m${e}\[39m${rest}/${e}[1m${e}[23m${e}[34m\1/" \
+      -e "s/^${e}\[22m${e}\[3m${e}\[39m${rest}/${e}[1m${e}[23m${e}[35m\1/"
+    echo
+  else
+    cat
+  fi
+}
+mise run --quiet release:prepare --dry-run ${usage_version:+"$usage_version"} | render
+'''
 
 [tasks."release:ready"]
 description = "Check that HEAD is origin/main, the working copy is clean, and gh is logged in"
