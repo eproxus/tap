@@ -2,7 +2,7 @@
 erlang = "29.1.1"
 elixir = "1.20.4-otp-29"
 rebar = "3.27.1"
-"github:WhatsApp/erlang-language-platform" = { version = "2026-10-05", matching = "otp-29.0", exe = "elp" }
+"github:WhatsApp/erlang-language-platform" = { version = "2026-10-14", matching = "otp-29.1", exe = "elp" }
 actionlint = "1.7.12"
 gh = "2.102.0"
 git-cliff = "2.14.2"
